@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-950">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Crucible-Canvas{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .badge-green  { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-emerald-900 text-emerald-300 border border-emerald-700; }
+    .badge-amber  { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-yellow-900 text-yellow-300 border border-yellow-700; }
+    .badge-red    { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-900 text-red-300 border border-red-700; }
+    .badge-gray   { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-gray-700 text-gray-300 border border-gray-600; }
+    .badge-blue   { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-blue-900 text-blue-300 border border-blue-700; }
+    .badge-purple { @apply inline-block px-2 py-0.5 rounded text-xs font-semibold bg-purple-900 text-purple-300 border border-purple-700; }
+  </style>
+</head>
+<body class="min-h-full text-gray-100 font-mono">
+
+  <!-- Nav -->
+  <nav class="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 flex items-center gap-6 h-12">
+      <a href="/dashboard" class="text-emerald-400 font-bold tracking-tight text-sm hover:text-emerald-300">⬡ crucible-canvas</a>
+      <a href="/dashboard" class="text-gray-400 hover:text-gray-200 text-xs">dashboard</a>
+      <a href="/graph" class="text-gray-400 hover:text-gray-200 text-xs">graph</a>
+      <a href="/console" class="text-purple-400 hover:text-purple-300 text-xs">⚖ console</a>
+      <a href="/hil" class="text-amber-400 hover:text-amber-300 text-xs">◈ hil</a>
+      <div class="flex-1"></div>
+      <span class="text-gray-600 text-xs">read-only · v1</span>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>

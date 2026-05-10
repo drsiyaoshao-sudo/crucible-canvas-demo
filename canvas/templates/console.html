@@ -1,0 +1,552 @@
+{% extends "base.html" %}
+{% block title %}Judicial Console — Crucible-Canvas{% endblock %}
+
+{% block content %}
+<div x-data="consoleApp()" x-init="init()" class="h-full">
+
+  <!-- Header -->
+  <div class="flex items-baseline gap-4 mb-4">
+    <h1 class="text-xl font-bold text-white">⚖ Judicial Console</h1>
+    <span class="text-gray-500 text-xs">attorney-A · attorney-B · Justice presiding</span>
+    <div class="flex-1"></div>
+    <button @click="showSetup = !showSetup"
+            class="px-3 py-1 rounded text-xs border border-purple-700 text-purple-400 hover:bg-purple-900/40 transition">
+      + New Hearing
+    </button>
+    <button @click="showClear = !showClear"
+            class="px-3 py-1 rounded text-xs border border-red-800 text-red-400 hover:bg-red-950/40 transition">
+      ✕ Clear
+    </button>
+  </div>
+
+  <!-- Clear confirmation panel -->
+  <div x-show="showClear" x-cloak
+       class="mb-4 rounded-xl border border-red-800 bg-red-950/20 p-4 space-y-3">
+    <div class="text-xs text-red-400 uppercase tracking-wider font-semibold">Clear Sessions — Eliminate Contamination</div>
+    <div class="flex items-center gap-3">
+      <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+        <input type="checkbox" x-model="clearPurgeDocs"
+               class="rounded border-gray-600 bg-gray-800 text-red-500 focus:ring-red-600" />
+        Also delete generated forge docs
+        <span class="text-gray-500">(candidates_suggestion_*.md, prescreen_matrix_*.md, compliance_prescreen.md)</span>
+      </label>
+    </div>
+    <div class="flex gap-2 items-center">
+      <button @click="clearAll()"
+              class="px-4 py-1.5 rounded text-sm font-semibold bg-red-800 hover:bg-red-700 text-white transition">
+        Confirm Clear
+      </button>
+      <button @click="showClear = false" class="text-gray-500 hover:text-gray-300 text-xs">cancel</button>
+      <span x-show="clearMsg" x-cloak class="text-xs font-mono"
+            :class="clearErr ? 'text-red-400' : 'text-emerald-400'" x-text="clearMsg"></span>
+    </div>
+  </div>
+
+  <!-- New hearing setup panel -->
+  <div x-show="showSetup" x-cloak
+       class="mb-4 rounded-xl border border-purple-800 bg-purple-950/30 p-4 space-y-3">
+    <div class="text-xs text-purple-400 uppercase tracking-wider font-semibold mb-2">Declare Judicial Hearing</div>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2">
+        <label class="text-xs text-gray-500 block mb-1">Motion — the question to resolve</label>
+        <input x-model="setup.motion" type="text"
+               placeholder='e.g. "Should GaitSense IP candidates proceed to patent counsel review?"'
+               class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-purple-600" />
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Attorney-A position (argue FOR)</label>
+        <input x-model="setup.position_a" type="text"
+               placeholder="Candidates are novel and should proceed"
+               class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-red-700" />
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Attorney-B position (argue AGAINST)</label>
+        <input x-model="setup.position_b" type="text"
+               placeholder="Candidates lack novelty — do not proceed"
+               class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-blue-700" />
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Product</label>
+        <select x-model="setup.slug"
+                class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded px-3 py-1.5 font-mono focus:outline-none focus:border-purple-600">
+          {% for slug in slugs %}
+          <option value="{{ slug }}">{{ slug }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500 block mb-1">Evidence topic</label>
+        <select x-model="setup.topic"
+                class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded px-3 py-1.5 font-mono focus:outline-none focus:border-purple-600">
+          <option value="patent">Patent / IP</option>
+          <option value="compliance">Compliance</option>
+          <option value="general">General (all evidence)</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-2 items-center">
+      <button @click="declareHearing()"
+              :disabled="!setup.motion || !setup.position_a || !setup.position_b"
+              class="px-4 py-1.5 rounded text-sm font-semibold bg-purple-700 hover:bg-purple-600 text-white disabled:opacity-40 transition">
+        Declare Hearing
+      </button>
+      <button @click="showSetup = false" class="text-gray-500 hover:text-gray-300 text-xs">cancel</button>
+      <span x-show="setupError" x-cloak class="text-red-400 text-xs" x-text="setupError"></span>
+    </div>
+  </div>
+
+  <!-- Main layout: transcript (left) + right sidebar -->
+  <div class="grid lg:grid-cols-4 gap-4" style="min-height: 72vh">
+
+    <!-- Debate transcript (3/4 width) -->
+    <div class="lg:col-span-3 flex flex-col rounded-xl border border-gray-800 bg-gray-900" style="min-height: 72vh">
+
+      <!-- Hearing selector tabs -->
+      <div class="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-gray-800 flex-wrap">
+        <template x-for="s in hearings" :key="s.id">
+          <button @click="activeId = s.id; fetchHearing(s.id)"
+                  :class="activeId === s.id
+                    ? 'bg-gray-800 text-white border-purple-600'
+                    : 'text-gray-500 hover:text-gray-300 border-transparent'"
+                  class="px-3 py-1.5 rounded-t text-xs font-mono border-b-2 transition">
+            <span x-text="'#' + s.case_number + ' ' + s.motion.substring(0,28) + (s.motion.length > 28 ? '…' : '')"></span>
+            <span x-show="s.status === 'ruled'" class="ml-1 text-emerald-500">✓</span>
+          </button>
+        </template>
+        <span x-show="hearings.length === 0" class="text-gray-600 text-xs pb-2">No hearings yet — declare one above.</span>
+      </div>
+
+      <!-- Transcript body -->
+      <div id="transcript" class="flex-1 overflow-y-auto px-5 py-4 space-y-4 font-mono text-sm"
+           style="max-height: 56vh">
+
+        <template x-if="!activeSession">
+          <div class="text-gray-600 text-center mt-12 text-xs">Select or declare a hearing to begin.</div>
+        </template>
+
+        <!-- Evidence gathering indicator -->
+        <template x-if="activeSession && activeSession.status === 'gathering_evidence'">
+          <div class="flex items-center gap-3 rounded-lg bg-indigo-950/40 border border-indigo-800/50 px-4 py-2.5 text-xs text-indigo-300 font-mono">
+            <svg class="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            <span>Evidence orchestrator running — dispatching list_forge_files / read_forge_file tools…</span>
+          </div>
+        </template>
+
+        <template x-if="activeSession">
+          <div class="space-y-4">
+            <template x-for="(turn, idx) in activeSession.turns" :key="idx">
+              <div :class="{
+                     'border-l-4 border-red-700 pl-4':    turn.speaker === 'attorney-a',
+                     'border-l-4 border-blue-700 pl-4':   turn.speaker === 'attorney-b',
+                     'border-l-4 border-amber-600 pl-4':  turn.speaker === 'justice',
+                     'border-l-4 border-gray-600 pl-4':   turn.speaker === 'clerk',
+                     'border-l-4 border-indigo-700 pl-4': turn.speaker === 'orchestrator',
+                   }">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs font-bold uppercase tracking-wider"
+                        :class="{
+                          'text-red-400':    turn.speaker === 'attorney-a',
+                          'text-blue-400':   turn.speaker === 'attorney-b',
+                          'text-amber-400':  turn.speaker === 'justice',
+                          'text-gray-500':   turn.speaker === 'clerk',
+                          'text-indigo-400': turn.speaker === 'orchestrator',
+                        }"
+                        x-text="speakerLabel(turn.speaker)"></span>
+                  <span class="text-gray-700 text-xs" x-text="fmtTime(turn.timestamp)"></span>
+                  <template x-if="turn.speaker === 'attorney-a'">
+                    <span class="text-xs text-red-800 font-mono" x-text="activeSession ? '→ ' + activeSession.position_a : ''"></span>
+                  </template>
+                  <template x-if="turn.speaker === 'attorney-b'">
+                    <span class="text-xs text-blue-800 font-mono" x-text="activeSession ? '→ ' + activeSession.position_b : ''"></span>
+                  </template>
+                </div>
+                <div class="text-gray-200 text-xs leading-relaxed whitespace-pre-wrap" x-text="turn.content"></div>
+              </div>
+            </template>
+
+            <!-- Active agent indicator -->
+            <template x-if="activeSession && activeSession.active">
+              <div :class="activeSession.active === 'attorney-a'
+                             ? 'border-l-4 border-red-700 pl-4'
+                             : 'border-l-4 border-blue-700 pl-4'">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider"
+                        :class="activeSession.active === 'attorney-a' ? 'text-red-400' : 'text-blue-400'"
+                        x-text="speakerLabel(activeSession.active)"></span>
+                  <span class="flex gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce"
+                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          style="animation-delay:0ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce"
+                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          style="animation-delay:150ms"></span>
+                    <span class="w-1.5 h-1.5 rounded-full animate-bounce"
+                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          style="animation-delay:300ms"></span>
+                  </span>
+                  <span class="text-gray-600 text-xs">arguing…</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Ruling banner -->
+            <template x-if="activeSession && activeSession.status === 'ruled'">
+              <div class="rounded-lg border border-emerald-700 bg-emerald-950/40 px-4 py-3 mt-4">
+                <div class="text-xs text-emerald-400 uppercase tracking-wider font-semibold mb-1">Hearing Closed — Ruling Recorded</div>
+                <div class="text-emerald-200 text-xs">Written to docs/governance/case_law.md</div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <!-- Justice input bar (bottom of transcript pane) -->
+      <div class="border-t border-gray-800 px-4 py-3 space-y-2">
+        <div class="flex gap-2 flex-wrap">
+          <!-- Direct attorney buttons -->
+          <button @click="directAttorney('attorney-a')"
+                  :disabled="!activeSession || !!activeSession.active || activeSession.status !== 'open'"
+                  class="px-3 py-1.5 rounded text-xs font-semibold bg-red-900/60 text-red-300 border border-red-800 hover:bg-red-900 disabled:opacity-30 transition">
+            <span x-show="!activeSession || activeSession.status !== 'gathering_evidence'">▶ Attorney-A argue</span>
+            <span x-show="activeSession && activeSession.status === 'gathering_evidence'" x-cloak>⏳ gathering evidence…</span>
+          </button>
+          <button @click="directAttorney('attorney-b')"
+                  :disabled="!activeSession || !!activeSession.active || activeSession.status !== 'open'"
+                  class="px-3 py-1.5 rounded text-xs font-semibold bg-blue-900/60 text-blue-300 border border-blue-800 hover:bg-blue-900 disabled:opacity-30 transition">
+            ▶ Attorney-B argue
+          </button>
+          <div class="flex-1"></div>
+          <select x-model="justiceTarget"
+                  class="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded px-2 py-1 font-mono focus:outline-none">
+            <option value="justice">Speak as Justice</option>
+            <option value="direct-a">Direct to Attorney-A</option>
+            <option value="direct-b">Direct to Attorney-B</option>
+            <option value="ruling">Issue Ruling</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <textarea x-model="justiceInput"
+                    @keydown.meta.enter="submitJustice()"
+                    :placeholder="justicePlaceholder()"
+                    rows="2"
+                    :disabled="!activeSession || activeSession.status === 'ruled'"
+                    class="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-amber-600 resize-none disabled:opacity-40"></textarea>
+          <button @click="submitJustice()"
+                  :disabled="!justiceInput.trim() || !activeSession || !!activeSession.active || activeSession.status === 'ruled'"
+                  :class="justiceTarget === 'ruling' ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-amber-700 hover:bg-amber-600'"
+                  class="px-4 rounded-lg text-xs font-semibold text-white disabled:opacity-30 transition self-stretch">
+            <span x-text="justiceTarget === 'ruling' ? 'Rule' : justiceTarget === 'direct-a' ? '→ A' : justiceTarget === 'direct-b' ? '→ B' : 'Speak'"></span>
+          </button>
+        </div>
+        <div class="text-gray-700 text-xs">⌘↵ to send · Attorney arguments run as background tasks · Ruling writes to case_law.md</div>
+      </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="space-y-4">
+
+      <!-- Agent status -->
+      <div class="rounded-xl border border-gray-800 bg-gray-900 p-4">
+        <div class="text-xs text-cyan-400 uppercase tracking-wider font-semibold mb-3">Agent Status</div>
+        <div class="space-y-2">
+          <template x-for="a in ['attorney-a', 'attorney-b']" :key="a">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full"
+                    :class="activeSession && activeSession.active === a
+                              ? (a === 'attorney-a' ? 'bg-red-400 animate-pulse' : 'bg-blue-400 animate-pulse')
+                              : 'bg-gray-700'"></span>
+              <span class="text-xs font-mono"
+                    :class="a === 'attorney-a' ? 'text-red-400' : 'text-blue-400'"
+                    x-text="a"></span>
+              <span class="text-xs text-gray-600"
+                    x-text="activeSession && activeSession.active === a ? 'arguing…' : 'idle'"></span>
+            </div>
+          </template>
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-600"></span>
+            <span class="text-xs font-mono text-amber-400">justice</span>
+            <span class="text-xs text-gray-600">presiding</span>
+          </div>
+        </div>
+
+        <!-- Evidence loaded -->
+        <template x-if="activeSession && activeSession.evidence_files.length">
+          <div class="mt-4">
+            <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Evidence loaded</div>
+            <div class="space-y-1 max-h-40 overflow-y-auto">
+              <template x-for="f in activeSession.evidence_files" :key="f">
+                <div class="text-xs text-gray-600 font-mono truncate" x-text="f"></div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Command terminal -->
+      <div class="rounded-xl border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <div class="text-xs text-emerald-400 uppercase tracking-wider font-semibold">Command Terminal</div>
+        <p class="text-gray-600 text-xs">Spawn forge agents to generate evidence before or during a hearing.</p>
+        <div class="flex flex-wrap gap-1.5">
+          {% for slug in slugs %}
+          <button @click="runCmd('novelty {{ slug }}')"
+                  class="px-2 py-1 rounded text-xs bg-purple-900/50 text-purple-300 border border-purple-800 hover:bg-purple-900 transition">
+            novelty {{ slug }}
+          </button>
+          <button @click="runCmd('compliance screen {{ slug }}')"
+                  class="px-2 py-1 rounded text-xs bg-amber-900/50 text-amber-300 border border-amber-800 hover:bg-amber-900 transition">
+            screen {{ slug }}
+          </button>
+          <button @click="runCmd('compliance map {{ slug }}')"
+                  class="px-2 py-1 rounded text-xs bg-orange-900/50 text-orange-300 border border-orange-800 hover:bg-orange-900 transition">
+            map {{ slug }}
+          </button>
+          {% endfor %}
+        </div>
+        <div class="flex gap-1">
+          <span class="text-emerald-500 text-xs mt-1.5">$</span>
+          <input x-model="cmd" @keydown.enter="runCmd(cmd)"
+                 type="text" placeholder="novelty gaitsense"
+                 class="flex-1 bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-emerald-600" />
+          <button @click="runCmd(cmd)" :disabled="!cmd.trim()"
+                  class="px-2 py-1 rounded text-xs bg-emerald-700 hover:bg-emerald-600 text-white disabled:opacity-30">Go</button>
+        </div>
+        <div x-show="cmdMsg" x-cloak
+             :class="cmdErr ? 'text-red-400' : 'text-emerald-400'"
+             class="text-xs font-mono" x-text="cmdMsg"></div>
+
+        <!-- Active forge jobs -->
+        <div x-show="forgeJobs.length" x-cloak class="space-y-1 max-h-28 overflow-y-auto">
+          <div class="text-xs text-gray-500 uppercase tracking-wider">Forge jobs</div>
+          <template x-for="j in forgeJobs" :key="j.job_id">
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <span class="w-1.5 h-1.5 rounded-full"
+                    :class="{
+                      'bg-yellow-400 animate-pulse': j.status === 'running',
+                      'bg-emerald-400': j.status === 'done',
+                      'bg-red-400': j.status === 'error',
+                      'bg-gray-500': j.status === 'queued',
+                    }"></span>
+              <span class="text-gray-400" x-text="j.job_type.replace('_',' ')"></span>
+              <span class="text-gray-600" x-text="j.slug"></span>
+              <span :class="j.status === 'done' ? 'text-emerald-500' : j.status === 'error' ? 'text-red-400' : 'text-yellow-400'"
+                    x-text="j.status"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function consoleApp() {
+  return {
+    hearings: [],
+    activeId: null,
+    activeSession: null,
+    showSetup: false,
+    showClear: false,
+    clearPurgeDocs: false,
+    clearMsg: '',
+    clearErr: false,
+    setupError: '',
+    setup: { motion: '', position_a: '', position_b: '', slug: '{{ slugs[0] if slugs else "" }}', topic: 'patent' },
+    justiceInput: '',
+    justiceTarget: 'justice',
+    forgeJobs: [],
+    cmd: '',
+    cmdMsg: '',
+    cmdErr: false,
+    pollTimer: null,
+
+    init() {
+      this.fetchHearings();
+      this.pollTimer = setInterval(() => this.poll(), 2500);
+    },
+
+    async poll() {
+      if (this.activeId && (this.activeSession?.active || this.activeSession?.status === 'gathering_evidence')) {
+        await this.fetchHearing(this.activeId);
+      }
+      await this.fetchForgeJobs();
+    },
+
+    async fetchHearings() {
+      try {
+        const r = await fetch('/hearing/list');
+        const d = await r.json();
+        this.hearings = d.hearings;
+        if (!this.activeId && d.hearings.length) {
+          this.activeId = d.hearings[0].id;
+          this.activeSession = d.hearings[0];
+        }
+      } catch(_) {}
+    },
+
+    async fetchHearing(id) {
+      try {
+        const r = await fetch(`/hearing/${id}`);
+        const d = await r.json();
+        this.activeSession = d;
+        // keep hearings list in sync
+        const idx = this.hearings.findIndex(h => h.id === id);
+        if (idx >= 0) this.hearings[idx] = d;
+        this.$nextTick(() => {
+          const t = document.getElementById('transcript');
+          if (t) t.scrollTop = t.scrollHeight;
+        });
+      } catch(_) {}
+    },
+
+    async fetchForgeJobs() {
+      try {
+        const r = await fetch('/api/jobs');
+        const d = await r.json();
+        this.forgeJobs = d.jobs.slice(0, 5);
+      } catch(_) {}
+    },
+
+    async declareHearing() {
+      this.setupError = '';
+      try {
+        const r = await fetch('/hearing/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.setup),
+        });
+        const d = await r.json();
+        if (d.error) { this.setupError = d.error; return; }
+        this.hearings.unshift(d);
+        this.activeId = d.id;
+        this.activeSession = d;
+        this.showSetup = false;
+        this.setup = { motion: '', position_a: '', position_b: '', slug: this.setup.slug, topic: this.setup.topic };
+      } catch(e) {
+        this.setupError = e.message;
+      }
+    },
+
+    async directAttorney(attorney) {
+      if (!this.activeId || !this.activeSession) return;
+      try {
+        await fetch(`/hearing/${this.activeId}/argue/${attorney}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ directive: '' }),
+        });
+        this.activeSession.active = attorney;
+        this.pollTimer && clearInterval(this.pollTimer);
+        this.pollTimer = setInterval(() => this.poll(), 1500);
+      } catch(_) {}
+    },
+
+    async submitJustice() {
+      const content = this.justiceInput.trim();
+      if (!content || !this.activeId) return;
+
+      if (this.justiceTarget === 'ruling') {
+        await fetch(`/hearing/${this.activeId}/rule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ruling: content }),
+        });
+      } else if (this.justiceTarget === 'direct-a' || this.justiceTarget === 'direct-b') {
+        const atty = this.justiceTarget === 'direct-a' ? 'attorney-a' : 'attorney-b';
+        // First log justice directive in transcript
+        await fetch(`/hearing/${this.activeId}/justice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: `[To ${atty}]: ${content}` }),
+        });
+        // Then trigger attorney with that directive
+        await fetch(`/hearing/${this.activeId}/argue/${atty}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ directive: content }),
+        });
+        this.activeSession.active = atty;
+      } else {
+        await fetch(`/hearing/${this.activeId}/justice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        });
+      }
+      this.justiceInput = '';
+      await this.fetchHearing(this.activeId);
+    },
+
+    async clearAll() {
+      this.clearMsg = '';
+      this.clearErr = false;
+      try {
+        const r = await fetch('/api/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ purge_docs: this.clearPurgeDocs }),
+        });
+        const d = await r.json();
+        this.hearings = [];
+        this.activeId = null;
+        this.activeSession = null;
+        this.forgeJobs = [];
+        const del = d.files_deleted?.length || 0;
+        this.clearMsg = `✓ Cleared. ${del ? del + ' doc(s) deleted.' : 'Sessions & jobs wiped.'}`;
+        this.showClear = false;
+      } catch(e) {
+        this.clearMsg = `✗ ${e.message}`;
+        this.clearErr = true;
+      }
+    },
+
+    async runCmd(raw) {
+      raw = raw.trim().toLowerCase();
+      if (!raw) return;
+      this.cmdMsg = '';
+      this.cmdErr = false;
+      try {
+        const r = await fetch('/api/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cmd: raw }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+          this.cmdMsg = `✓ ${d.job_type} · ${d.slug} · job ${d.job_id}`;
+          this.cmd = '';
+          await this.fetchForgeJobs();
+        } else {
+          this.cmdMsg = `✗ ${d.error}`;
+          this.cmdErr = true;
+        }
+      } catch(e) {
+        this.cmdMsg = `✗ ${e.message}`;
+        this.cmdErr = true;
+      }
+    },
+
+    speakerLabel(speaker) {
+      return { 'attorney-a': 'Attorney-A', 'attorney-b': 'Attorney-B',
+               'justice': 'Justice', 'clerk': 'Clerk',
+               'orchestrator': 'Evidence Orchestrator' }[speaker] || speaker;
+    },
+
+    fmtTime(iso) {
+      try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+      catch(_) { return ''; }
+    },
+
+    justicePlaceholder() {
+      const m = {
+        'justice': 'State an observation for the record…',
+        'direct-a': 'Direct Attorney-A — e.g. "Address the non-obviousness of the Kalman combination"',
+        'direct-b': 'Direct Attorney-B — e.g. "What prior art challenges claim 3?"',
+        'ruling': 'Issue your ruling. This will be written to docs/governance/case_law.md',
+      };
+      return m[this.justiceTarget] || '';
+    },
+  };
+}
+</script>
+{% endblock %}

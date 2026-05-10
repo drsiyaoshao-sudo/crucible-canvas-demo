@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ slug }} — Crucible-Canvas{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<div class="text-xs text-gray-500 mb-6">
+  <a href="/dashboard" class="hover:text-gray-300">dashboard</a>
+  <span class="mx-2">›</span>
+  <span class="text-gray-300">{{ slug }}</span>
+</div>
+
+<div class="flex items-baseline gap-4 mb-8">
+  <h1 class="text-2xl font-bold text-white">{{ slug }}</h1>
+  <span class="text-gray-400 text-sm">{{ record.version }}</span>
+  <span class="badge-blue">{{ record.phase }}</span>
+</div>
+
+<div class="grid gap-8 lg:grid-cols-2">
+
+  <!-- Left column -->
+  <div class="space-y-8">
+
+    <!-- Firmware snapshot -->
+    {% if firmware %}
+    <section>
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Firmware Snapshot</h2>
+      <div class="rounded-xl border border-gray-800 bg-gray-900 p-5 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-gray-500">Board</span>
+          <span class="text-gray-200">{{ firmware.board.name if firmware.board else '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">MCU</span>
+          <span class="text-gray-200">{{ firmware.board.mcu if firmware.board else '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">Hash</span>
+          <span class="text-emerald-400 font-mono text-xs">{{ firmware.firmware_hash or '—' }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">Lock status</span>
+          {% if firmware.lock_status == 'LOCKED' %}
+          <span class="badge-green">{{ firmware.lock_status }}</span>
+          {% else %}
+          <span class="badge-amber">{{ firmware.lock_status or '—' }}</span>
+          {% endif %}
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">Stage validated</span>
+          <span class="text-gray-200 text-xs">{{ firmware.stage_validated or '—' }}</span>
+        </div>
+        {% if firmware.libraries %}
+        <div class="pt-2 border-t border-gray-800">
+          <div class="text-gray-500 text-xs mb-2">Libraries</div>
+          {% for lib in firmware.libraries %}
+          <div class="flex justify-between text-xs py-0.5">
+            <span class="text-gray-300">{{ lib.name }}</span>
+            <span class="text-gray-500">{{ lib.version }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <!-- Feature abstract -->
+    {% if abstract %}
+    <section x-data="{ expanded: false }">
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Feature Abstract</h2>
+      <div class="rounded-xl border border-gray-800 bg-gray-900 p-5">
+        <div class="text-sm text-gray-300 leading-relaxed"
+             :class="expanded ? '' : 'line-clamp-6'"
+             x-cloak>
+          {{ abstract | replace('\n', '<br>') | safe }}
+        </div>
+        <div class="text-sm text-gray-300 leading-relaxed line-clamp-6"
+             x-show="!expanded">
+          {{ abstract | replace('\n', '<br>') | safe }}
+        </div>
+        <div class="text-sm text-gray-300 leading-relaxed hidden"
+             :class="expanded ? '!block' : 'hidden'">
+          {{ abstract | replace('\n', '<br>') | safe }}
+        </div>
+        <button @click="expanded = !expanded"
+                class="mt-3 text-xs text-emerald-500 hover:text-emerald-300 transition-colors">
+          <span x-text="expanded ? 'Show less ▲' : 'Show more ▼'">Show more ▼</span>
+        </button>
+      </div>
+    </section>
+    {% endif %}
+
+  </div>
+
+  <!-- Right column -->
+  <div class="space-y-8">
+
+    <!-- Patent candidates -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Patent Candidates</h2>
+        <a href="/ip/{{ slug }}" class="text-xs text-emerald-500 hover:text-emerald-300">view all →</a>
+      </div>
+      {% if not candidates %}
+      <div class="rounded-xl border border-dashed border-gray-700 p-6 text-center text-gray-500 text-sm">
+        No candidates yet.<br>
+        <code class="text-emerald-500 text-xs">/patent novelty {{ slug }}</code>
+      </div>
+      {% else %}
+      <div class="space-y-3">
+        {% for c in candidates %}
+        <div class="rounded-xl border border-gray-800 bg-gray-900 p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="text-sm text-white font-medium leading-tight">{{ c.title }}</div>
+            <span class="badge-purple shrink-0">suggestion</span>
+          </div>
+          {% if c.heuristic %}
+          <div class="mt-1 text-xs text-gray-500">Heuristic: <span class="text-yellow-400">{{ c.heuristic }}</span></div>
+          {% endif %}
+          {% if c.summary %}
+          <div class="mt-2 text-xs text-gray-400 line-clamp-2">{{ c.summary }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+  </div>
+</div>
+
+<!-- BOM table -->
+{% if bom %}
+<section class="mt-10">
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Bill of Materials</h2>
+  <div class="overflow-x-auto rounded-xl border border-gray-800">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-900 text-gray-400 text-xs uppercase">
+        <tr>
+          {% for key in bom[0].keys() %}
+          <th class="px-4 py-3 text-left font-medium">{{ key }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {% for row in bom %}
+        <tr class="bg-gray-950 hover:bg-gray-900 transition-colors">
+          {% for val in row.values() %}
+          <td class="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">{{ val }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

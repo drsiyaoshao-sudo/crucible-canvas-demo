@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}HIL · crucible-canvas{% endblock %}
+
+{% block content %}
+<div class="flex flex-col" style="height: calc(100vh - 8rem);">
+
+  <!-- Header bar -->
+  <div class="flex items-center justify-between mb-3 flex-shrink-0">
+    <div>
+      <span class="text-emerald-400 font-bold text-sm">hardware-in-the-loop</span>
+      <span class="text-gray-600 text-xs ml-3">{{ gaitsense_path }}</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs {% if gaitsense_exists %}text-emerald-600{% else %}text-red-500{% endif %}">
+        corpus {% if gaitsense_exists %}found{% else %}NOT FOUND{% endif %}
+      </span>
+      <button onclick="clearTerm()" class="text-xs text-gray-700 hover:text-gray-400">clear</button>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="flex flex-col flex-1 bg-black border border-gray-800 rounded overflow-hidden">
+
+    <!-- Chrome -->
+    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 border-b border-gray-800 flex-shrink-0">
+      <div class="w-2.5 h-2.5 rounded-full bg-red-900"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-yellow-900"></div>
+      <div class="w-2.5 h-2.5 rounded-full bg-green-900"></div>
+      <span class="ml-2 text-xs text-gray-700" id="term-title">crucible-gaitsense agent terminal</span>
+      <div class="flex-1"></div>
+      <span id="status-dot" class="text-gray-700 text-xs">●</span>
+    </div>
+
+    <!-- Output -->
+    <div
+      id="terminal"
+      class="flex-1 overflow-y-auto p-3 text-xs leading-5"
+      style="font-family: 'SF Mono','Fira Code','Cascadia Code',monospace; background:#0a0a0a; color:#6b7280;"
+    >
+      <div>crucible-canvas · hil terminal · corpus-supremacy mode</div>
+      <div>agents: /toolchain · /regression · hw-advisor · uart-reader · regression-runner</div>
+      <div style="color:#374151;">──────────────────────────────────────────────────────</div>
+      <div>&nbsp;</div>
+      <div id="cursor" class="hidden" style="color:#10b981;">█</div>
+    </div>
+
+    <!-- Input -->
+    <div class="flex items-center gap-2 px-3 py-2 border-t border-gray-800 bg-gray-950 flex-shrink-0">
+      <span style="color:#10b981; font-family:'SF Mono',monospace; font-size:0.75rem;">$</span>
+      <input
+        id="prompt-input"
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="/toolchain detect  ·  /regression  ·  compile and flash ble_counter_test  ·  run smoke tests"
+        class="flex-1 bg-transparent text-xs text-gray-200 outline-none placeholder-gray-700"
+        style="font-family:'SF Mono','Fira Code','Cascadia Code',monospace;"
+        onkeydown="if(event.key==='Enter')submitPrompt()"
+      />
+      <button
+        onclick="submitPrompt()"
+        class="text-xs text-gray-700 hover:text-emerald-500 transition-colors px-1"
+      >↵</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let activeStream = null;
+  const history = [];
+  let histIdx = -1;
+
+  const input = document.getElementById('prompt-input');
+  const statusDot = document.getElementById('status-dot');
+
+  // Arrow-key history
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (histIdx < history.length - 1) { histIdx++; input.value = history[histIdx]; }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (histIdx > 0) { histIdx--; input.value = history[histIdx]; }
+      else { histIdx = -1; input.value = ''; }
+    }
+  });
+
+  function clearTerm() {
+    const term = document.getElementById('terminal');
+    term.innerHTML = '<div id="cursor" class="hidden" style="color:#10b981;">█</div>';
+  }
+
+  function appendLine(text) {
+    const term = document.getElementById('terminal');
+    const cursor = document.getElementById('cursor');
+    const div = document.createElement('div');
+    div.style.fontFamily = "'SF Mono','Fira Code','Cascadia Code',monospace";
+
+    const t = text.trim();
+    if (t.startsWith('$ ')) {
+      div.style.color = '#ca8a04';           // yellow — shell command
+    } else if (/^(PASS|ALL PASS|LOCKED|CLEAN)/.test(t)) {
+      div.style.color = '#10b981';           // green
+      div.style.fontWeight = '600';
+    } else if (/^(FAIL|ERROR|BLOCKED|CONSTITUTIONAL)/.test(t)) {
+      div.style.color = '#ef4444';           // red
+      div.style.fontWeight = '600';
+    } else if (/^(WARNING|\[WARNING\])/.test(t)) {
+      div.style.color = '#f59e0b';           // amber
+    } else if (/^(##|###|═|╔|╚|║|┌|└|│)/.test(t)) {
+      div.style.color = '#6366f1';           // indigo — markdown headers / box
+    } else if (/^\[(PASS|FAIL|WARN|ERROR|OPERATIONAL|CONSTITUTIONAL)\]/.test(t)) {
+      div.style.color = t.includes('PASS') ? '#10b981' : t.includes('FAIL') || t.includes('ERROR') ? '#ef4444' : '#f59e0b';
+      div.style.fontWeight = '600';
+    } else if (t === '' || t === ' ') {
+      div.innerHTML = '&nbsp;';
+      div.style.color = '#111';
+    } else {
+      div.style.color = '#9ca3af';           // default gray
+    }
+
+    div.textContent = (t === '' || t === ' ') ? ' ' : text;
+    term.insertBefore(div, cursor);
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function setRunning(running) {
+    statusDot.style.color = running ? '#10b981' : '#374151';
+    statusDot.textContent = running ? '●' : '●';
+    document.getElementById('cursor').classList.toggle('hidden', !running);
+    input.disabled = running;
+    if (!running) input.focus();
+  }
+
+  function submitPrompt() {
+    const prompt = input.value.trim();
+    if (!prompt) return;
+    if (activeStream) { activeStream.close(); activeStream = null; }
+
+    history.unshift(prompt);
+    histIdx = -1;
+    input.value = '';
+
+    appendLine(`$ ${prompt}`);
+    setRunning(true);
+    document.getElementById('term-title').textContent = prompt.slice(0, 60);
+
+    const url = `/api/hil/run?prompt=${encodeURIComponent(prompt)}`;
+    const es = new EventSource(url);
+    activeStream = es;
+
+    es.onmessage = (e) => {
+      if (e.data === '[DONE]') {
+        es.close();
+        activeStream = null;
+        setRunning(false);
+        document.getElementById('term-title').textContent = 'crucible-gaitsense agent terminal';
+        return;
+      }
+      // Skip the echoed command line (already printed above)
+      if (e.data.startsWith('$ ') && e.data.includes(prompt.slice(0, 20))) return;
+      appendLine(e.data === ' ' ? '' : e.data);
+    };
+
+    es.onerror = () => {
+      appendLine('stream disconnected');
+      setRunning(false);
+      es.close();
+      activeStream = null;
+    };
+  }
+
+  // Focus input on load
+  input.focus();
+</script>
+{% endblock %}
