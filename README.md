@@ -38,7 +38,7 @@ Canvas calls back into gaitsense only through the `/hil` terminal (subprocess SS
 | Requirement | Version |
 |---|---|
 | Python | 3.11+ |
-| [crucible-forge](https://github.com/drsiyaoshao-sudo/crucible-forge) cloned locally | `main` branch |
+| [crucible-forge](https://github.com/drsiyaoshao-sudo/crucible-forge) cloned locally | `demo/gaitsense-forge` branch |
 
 Canvas is read-only. You do not need Ollama, Claude, or any AI dependency to run it.
 Those are forge-side concerns.
