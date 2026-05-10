@@ -269,20 +269,12 @@ All UI routes are read-only GET pages. API routes are used internally by HTMX.
 
 ## Demo walkthrough
 
-Two terminals. One runs canvas, the other runs forge pipeline commands. Canvas auto-refreshes from forge files — no restart at any step.
-
-**Terminal A — canvas (keep running)**
+One terminal. Canvas dispatches all forge pipeline commands from the UI — no separate forge terminal needed.
 
 ```bash
 cd crucible-canvas
 python main.py
 # → http://localhost:8009
-```
-
-**Terminal B — forge pipeline (run commands in sequence)**
-
-```bash
-cd crucible-forge
 ```
 
 ---
@@ -302,32 +294,21 @@ Navigate to [http://localhost:8009/dashboard](http://localhost:8009/dashboard).
 │  │                                                      │   │
 │  │  compliance: none ●    IP candidates: none ●         │   │
 │  │                                                      │   │
-│  │  [▶ Run Patent Scout]  [▶ Run Compliance]            │   │
+│  │  [▶ run]  patent     [▶ run]  screen   [▶ run]  map  │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Badges show grey "none" — correct, pipeline hasn't run yet. The Run buttons dispatch forge commands directly from the UI (or use Terminal B below).
+Badges show grey "none" — correct, pipeline hasn't run yet.
 
 ---
 
 ### Step 2 — Patent novelty scout
 
-**Option A — UI:** click **Run Patent Scout** on the GaitSense card. Watch the badge update live.
-
-**Option B — terminal:**
-
-```bash
-# Terminal B
-claude "/patent novelty gaitsense"
-# ~30–60 s — writes candidates_suggestion_<timestamp>.md
-```
-
-Dashboard updates to:
+Click **run** next to **patent** on the GaitSense card. The button shows "running…" while the forge agent runs (~30–60 s). Badge updates live when done:
 
 ```
 │  compliance: none ●    IP candidates: 4 ●                   │
-│  [▶ Run Patent Scout]  [▶ Run Compliance]                    │
 ```
 
 ---
@@ -350,13 +331,13 @@ Click the **GaitSense** card title → `/product/gaitsense`
 │ [expand ▼]       │                                          │
 ├──────────────────┴──────────────────────────────────────────┤
 │ Bill of Materials                                            │
-│  Ref     │ Mfr           │ Part            │ Tier           │
-│  U1      │ STMicro       │ LSM6DS3TR-C     │ PRIMARY        │
+│  Ref  │ Mfr        │ Part          │ Tier                   │
+│  U1   │ STMicro    │ LSM6DS3TR-C  │ PRIMARY                 │
 │  …                                                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Click **expand** under Feature Abstract to see the full algorithm description inline (HTMX fetch, no page reload).
+Click **expand** under Feature Abstract to see the full algorithm description inline (HTMX, no page reload).
 
 ---
 
@@ -376,25 +357,14 @@ Click **IP** in the nav → `/ip/gaitsense`
 │  │ Heuristic: novel signal processing chain                │ │
 │  │ Non-obviousness: [expand ▼]                             │ │
 │  └─────────────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────── [sugg] ┐ │
-│  │ …                                                       │ │
-│  └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-Every card carries a **SUGGESTION ONLY** banner and a "verify with patent counsel" note. No Ollama required — cloud-mode pipeline.
 
 ---
 
 ### Step 5 — Compliance screening
 
-```bash
-# Terminal B
-claude "/compliance screen gaitsense"   # ~20–30 s
-claude "/compliance map gaitsense"      # ~30–60 s
-```
-
-Or click **Run Compliance** on the dashboard card (runs both in sequence).
+Back on the dashboard, click **run** next to **screen** (~20–30 s), then **run** next to **map** (~30–60 s).
 
 Navigate to `/compliance/gaitsense`:
 
@@ -409,14 +379,10 @@ Navigate to `/compliance/gaitsense`:
 │ [P1] IEC 60601-1   │ 45d ⏰        │ FCC 15B   │ PASS   ●  │
 │ [P2] EU RED        │               │ IEC 60601 │ COND   ●  │
 │ [P3] ISO 14971     │               │ EU RED    │ NOT    ●  │
-│                    │               │ …                      │
 └────────────────────┴───────────────┴────────────────────────┘
 ```
 
-Gap table colours:
-- Green — `LIKELY_PASS`
-- Amber — `LIKELY_CONDITIONAL`
-- Red — `NOT_TESTED`
+Gap table colours: green = `LIKELY_PASS`, amber = `LIKELY_CONDITIONAL`, red = `NOT_TESTED`.
 
 ---
 
@@ -432,9 +398,8 @@ Navigate to [/graph](http://localhost:8009/graph).
 │                           │                                  │
 │                      [IMU / BLE]                             │
 │                                                              │
-│  Click a node:                                               │
 │  ┌────────────────────────┐                                  │
-│  │ gaitsense              │                                  │
+│  │ gaitsense              │  ← click any node                │
 │  │ Ankle wearable gait    │                                  │
 │  │ analysis device        │                                  │
 │  │ → /product/gaitsense   │                                  │
@@ -442,11 +407,11 @@ Navigate to [/graph](http://localhost:8009/graph).
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Nodes coloured by domain. Click any node to open a sidebar with its description and, if it is a registered product, a link to its product page.
+Nodes coloured by domain. Click a node to open a sidebar; registered products link back to their product page.
 
 ---
 
-### Step 7 — HIL terminal (optional, requires crucible-gaitsense)
+### Step 7 — HIL terminal (requires crucible-gaitsense)
 
 Navigate to [/hil](http://localhost:8009/hil).
 
@@ -467,7 +432,7 @@ Navigate to [/hil](http://localhost:8009/hil).
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Type any gaitsense slash command (`/regression`, `/advisor hw`, `/toolchain`, `/session`) and press Enter. Output streams line by line. Arrow-up recalls previous commands.
+Type any gaitsense slash command and press Enter. Output streams line by line. Arrow-up recalls history.
 
 ---
 
