@@ -1,158 +1,113 @@
 {% extends "base.html" %}
+{% from "_components/badge.html" import badge, phase %}
+{% from "_components/empty_state.html" import empty %}
+{% from "_components/pipeline_row.html" import pipeline_row %}
+
 {% block title %}Dashboard — Crucible-Canvas{% endblock %}
 
 {% block content %}
-<div class="mb-8">
-  <h1 class="text-2xl font-bold text-white">{{ company.company_name }}</h1>
-  <p class="text-gray-400 text-sm mt-1">{{ company.domain }}</p>
-  <p class="text-gray-600 text-xs mt-1">{{ products|length }} product{{ 's' if products|length != 1 else '' }} registered</p>
+
+<!-- Company header -->
+<div class="flex items-start justify-between mb-8">
+  <div>
+    <h1 class="text-xl font-semibold text-white tracking-tight">{{ company.company_name }}</h1>
+    <p class="text-gray-500 text-xs mt-0.5">{{ company.domain }}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="stat-pill"><b>{{ products|length }}</b>&nbsp;product{{ 's' if products|length != 1 else '' }}</span>
+  </div>
 </div>
 
 {% if not products %}
-<div class="rounded-lg border border-dashed border-gray-700 p-10 text-center text-gray-500">
-  No products imported yet. Run <code class="text-emerald-400">/handoff import</code> in crucible-forge.
-</div>
+  {{ empty('No products imported yet.', hint='/handoff import in crucible-forge', size='lg') }}
 {% endif %}
 
-<div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+<div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 {% for p in products %}
 
-<!-- Per-product Alpine component tracking job state -->
-<div class="rounded-xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-4 hover:border-gray-600 transition-colors"
+<div class="rounded-2xl border border-gray-800/80 flex flex-col gap-0 card-hover overflow-hidden"
+     style="background:#0d1117"
      x-data='productCard({{ p | tojson }})'
      x-init="init()">
 
+  <!-- Card top accent -->
+  <div class="h-px w-full" style="background:linear-gradient(90deg,rgba(16,185,129,.4) 0%,rgba(16,185,129,.0) 60%)"></div>
+
   <!-- Header -->
-  <div class="flex items-start justify-between">
-    <div>
-      <a :href="'/product/' + slug" class="text-lg font-bold text-white hover:text-emerald-400 transition-colors">
+  <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-2">
+    <div class="min-w-0">
+      <a :href="'/product/' + slug"
+         class="text-base font-semibold text-white hover:text-emerald-400 transition-colors truncate block">
         <span x-text="slug">{{ p.slug }}</span>
       </a>
-      <div class="text-xs text-gray-500 mt-0.5">{{ p.version }} · imported {{ p.import_date }}</div>
+      <div class="text-xs text-gray-600 mt-0.5">{{ p.version }} · {{ p.import_date }}</div>
     </div>
-    <span class="badge-blue text-nowrap">{{ p.phase }}</span>
+    <div class="shrink-0 mt-0.5">{{ phase(p.phase) }}</div>
   </div>
 
-  <!-- Status badges — reactive -->
-  <div class="flex flex-wrap gap-2 text-xs">
+  <!-- Status row -->
+  <div class="px-5 pb-4 flex flex-wrap gap-1.5">
     <template x-if="live.gap_status === 'none' || !live.has_matrix">
-      <span class="badge-gray">compliance: none</span>
+      {{ badge('gray', 'compliance: none') }}
     </template>
     <template x-if="live.has_matrix && live.gap_status === 'green'">
-      <span class="badge-green">compliance: pass</span>
+      {{ badge('green', 'compliance: pass') }}
     </template>
     <template x-if="live.has_matrix && live.gap_status === 'amber'">
-      <span class="badge-amber">compliance: conditional</span>
+      {{ badge('amber', 'compliance: conditional') }}
     </template>
     <template x-if="live.has_matrix && live.gap_status === 'red'">
-      <span class="badge-red">compliance: gaps found</span>
+      {{ badge('red', 'compliance: gaps found') }}
     </template>
     <template x-if="live.has_matrix && !['green','amber','red'].includes(live.gap_status)">
-      <span class="badge-gray">compliance: pending</span>
+      {{ badge('gray', 'compliance: pending') }}
     </template>
 
     <template x-if="live.candidate_count === 0">
-      <span class="badge-gray">IP candidates: none</span>
+      {{ badge('gray', 'IP: none') }}
     </template>
     <template x-if="live.candidate_count > 0">
-      <span class="badge-purple" x-text="'IP candidates: ' + live.candidate_count"></span>
+      <span class="badge-purple" x-text="'IP: ' + live.candidate_count + ' candidates'"></span>
     </template>
   </div>
 
-  <!-- Pipeline run buttons -->
-  <div class="border border-gray-800 rounded-lg p-3 space-y-2">
-    <div class="text-xs text-gray-500 uppercase tracking-wider mb-2">Pipeline</div>
+  <!-- Divider -->
+  <div class="mx-5" style="height:1px;background:rgba(255,255,255,.05)"></div>
 
-    <!-- Patent Novelty -->
-    <div class="flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 text-xs">
-        <template x-if="jobs.novelty.status === 'running'">
-          <span class="inline-block w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></span>
-        </template>
-        <template x-if="jobs.novelty.status === 'done'">
-          <span class="text-emerald-400">✓</span>
-        </template>
-        <template x-if="jobs.novelty.status === 'error'">
-          <span class="text-red-400">✗</span>
-        </template>
-        <span class="text-gray-400">patent novelty scan</span>
-        <template x-if="jobs.novelty.status === 'done' && live.candidate_count > 0">
-          <span class="badge-purple text-[10px]" x-text="live.candidate_count + ' found'"></span>
-        </template>
-      </div>
-      <button
-        @click="runJob('novelty')"
-        :disabled="jobs.novelty.status === 'running'"
-        :class="jobs.novelty.status === 'running' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-emerald-700 hover:border-emerald-600'"
-        class="px-3 py-1 rounded border border-gray-700 text-xs text-gray-300 transition-colors">
-        <span x-text="jobs.novelty.status === 'running' ? 'running…' : (jobs.novelty.status === 'done' ? 're-run' : 'run')"></span>
-      </button>
-    </div>
+  <!-- Pipeline -->
+  <div class="px-5 py-4 space-y-2.5">
+    <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Pipeline</div>
 
-    <!-- Compliance Screen -->
-    <div class="flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 text-xs">
-        <template x-if="jobs.compliance_screen.status === 'running'">
-          <span class="inline-block w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></span>
-        </template>
-        <template x-if="jobs.compliance_screen.status === 'done'">
-          <span class="text-emerald-400">✓</span>
-        </template>
-        <template x-if="jobs.compliance_screen.status === 'error'">
-          <span class="text-red-400">✗</span>
-        </template>
-        <span class="text-gray-400">compliance screen</span>
-      </div>
-      <button
-        @click="runJob('compliance_screen')"
-        :disabled="jobs.compliance_screen.status === 'running'"
-        :class="jobs.compliance_screen.status === 'running' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-yellow-900 hover:border-yellow-700'"
-        class="px-3 py-1 rounded border border-gray-700 text-xs text-gray-300 transition-colors">
-        <span x-text="jobs.compliance_screen.status === 'running' ? 'running…' : (jobs.compliance_screen.status === 'done' ? 're-run' : 'run')"></span>
-      </button>
-    </div>
+    {% call pipeline_row('novelty', 'patent novelty scan', accent='emerald') %}
+      <template x-if="jobs.novelty.status === 'done' && live.candidate_count > 0">
+        <span class="badge-purple text-[10px]" x-text="live.candidate_count + ' found'"></span>
+      </template>
+    {% endcall %}
 
-    <!-- Compliance Map -->
-    <div class="flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 text-xs">
-        <template x-if="jobs.compliance_map.status === 'running'">
-          <span class="inline-block w-3 h-3 border-2 border-orange-400 border-t-transparent rounded-full animate-spin"></span>
-        </template>
-        <template x-if="jobs.compliance_map.status === 'done'">
-          <span class="text-emerald-400">✓</span>
-        </template>
-        <template x-if="jobs.compliance_map.status === 'error'">
-          <span class="text-red-400">✗</span>
-        </template>
-        <span class="text-gray-400">compliance map</span>
-        <template x-if="!live.has_matrix && jobs.compliance_screen.status !== 'done'">
-          <span class="text-gray-600 text-[10px]">(run screen first)</span>
-        </template>
-        <template x-if="live.has_matrix && live.gap_status !== 'none'">
-          <span :class="{'badge-green': live.gap_status==='green', 'badge-amber': live.gap_status==='amber', 'badge-red': live.gap_status==='red'}"
-                class="text-[10px]" x-text="live.gap_status"></span>
-        </template>
-      </div>
-      <button
-        @click="runJob('compliance_map')"
-        :disabled="jobs.compliance_map.status === 'running'"
-        :class="jobs.compliance_map.status === 'running' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-orange-900 hover:border-orange-700'"
-        class="px-3 py-1 rounded border border-gray-700 text-xs text-gray-300 transition-colors">
-        <span x-text="jobs.compliance_map.status === 'running' ? 'running…' : (jobs.compliance_map.status === 'done' ? 're-run' : 'run')"></span>
-      </button>
-    </div>
+    {{ pipeline_row('compliance_screen', 'compliance screen', accent='yellow') }}
 
-    <!-- Error display -->
+    {% call pipeline_row('compliance_map', 'compliance map', accent='orange') %}
+      <template x-if="!live.has_matrix && jobs.compliance_screen.status !== 'done'">
+        <span class="text-gray-700 text-[10px]">(run screen first)</span>
+      </template>
+      <template x-if="live.has_matrix && live.gap_status !== 'none'">
+        <span :class="{'badge-green': live.gap_status==='green','badge-amber': live.gap_status==='amber','badge-red': live.gap_status==='red'}"
+              class="text-[10px]" x-text="live.gap_status"></span>
+      </template>
+    {% endcall %}
+
     <template x-if="lastError">
-      <div class="mt-2 rounded bg-red-950 border border-red-800 p-2 text-[10px] text-red-300 font-mono break-all max-h-20 overflow-y-auto" x-text="lastError"></div>
+      <div class="mt-2 rounded-lg px-3 py-2 text-[10px] text-red-300 mono break-all max-h-20 overflow-y-auto"
+           style="background:rgba(127,29,29,.3);border:1px solid rgba(185,28,28,.3)"
+           x-text="lastError"></div>
     </template>
   </div>
 
-  <!-- Nav links -->
-  <div class="flex gap-3 mt-auto pt-2 border-t border-gray-800 text-xs">
-    <a :href="'/product/' + slug" class="text-gray-400 hover:text-white transition-colors">product →</a>
-    <a :href="'/compliance/' + slug" class="text-gray-400 hover:text-white transition-colors">compliance →</a>
-    <a :href="'/ip/' + slug" class="text-gray-400 hover:text-white transition-colors">IP →</a>
+  <!-- Footer links -->
+  <div class="mt-auto px-5 py-3 flex gap-4" style="border-top:1px solid rgba(255,255,255,.05)">
+    <a :href="'/product/' + slug"    class="text-xs text-gray-500 hover:text-gray-300 transition-colors">product →</a>
+    <a :href="'/compliance/' + slug" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">compliance →</a>
+    <a :href="'/ip/' + slug"         class="text-xs text-gray-500 hover:text-gray-300 transition-colors">IP →</a>
   </div>
 
 </div>
@@ -165,15 +120,15 @@ function productCard(initial) {
     slug: initial.slug,
     live: {
       candidate_count: initial.candidate_count,
-      gap_status: initial.gap_status,
-      has_matrix: initial.has_matrix,
+      gap_status:      initial.gap_status,
+      has_matrix:      initial.has_matrix,
     },
     jobs: {
       novelty:           { status: 'idle', job_id: null },
       compliance_screen: { status: 'idle', job_id: null },
       compliance_map:    { status: 'idle', job_id: null },
     },
-    lastError: '',
+    lastError:  '',
     pollTimers: {},
 
     init() {},
@@ -203,11 +158,8 @@ function productCard(initial) {
         if (data.status === 'done' || data.status === 'error') {
           clearInterval(this.pollTimers[jobType]);
           this.jobs[jobType].status = data.status;
-          if (data.status === 'error') {
-            this.lastError = data.output || 'Unknown error';
-          } else {
-            await this.refreshLive();
-          }
+          if (data.status === 'error') this.lastError = data.output || 'Unknown error';
+          else await this.refreshLive();
         }
       } catch (_) {}
     },

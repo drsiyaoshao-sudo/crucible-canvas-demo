@@ -1,0 +1,43 @@
+{# ============================================================
+   badge — the product's color vocabulary in one component.
+   Usage:
+     {% from "_components/badge.html" import badge %}
+     {{ badge('green', 'compliance: pass') }}
+     {{ badge('purple', 'suggestion', extra='shrink-0') }}
+     {{ badge('amber', '45d', size='micro') }}
+
+   kind  : green | amber | red | gray | blue | purple
+   size  : default (text-xs) | micro (text-[10px])
+   ============================================================ #}
+{% macro badge(kind, text, extra='', size='default') -%}
+  {%- set valid = ['green','amber','red','gray','blue','purple'] -%}
+  {%- set k = kind if kind in valid else 'gray' -%}
+  <span class="badge-{{ k }}{% if size == 'micro' %} text-[10px]{% endif %}{% if extra %} {{ extra }}{% endif %}">{{ text }}</span>
+{%- endmacro %}
+
+
+{# Phase tag — UPPERCASE, always blue. Convenience wrapper. #}
+{% macro phase(label, extra='') -%}
+  {{ badge('blue', label | upper, extra=('text-nowrap ' ~ extra)|trim) }}
+{%- endmacro %}
+
+
+{# Priority — P1/P2/P3 with built-in color mapping. #}
+{% macro priority(p) -%}
+  {%- set p = p|string -%}
+  {%- if p == '1' -%}      {{ badge('red',   'P1') }}
+  {%- elif p == '2' -%}    {{ badge('amber', 'P2') }}
+  {%- else -%}             {{ badge('gray',  'P3') }}
+  {%- endif -%}
+{%- endmacro %}
+
+
+{# Status — map a compliance status string to the right badge. #}
+{% macro status_badge(status) -%}
+  {%- set s = (status or '')|upper -%}
+  {%- if 'CONDITIONAL' in s -%}                   {{ badge('amber', status) }}
+  {%- elif 'NOT_TESTED' in s or 'FAIL' in s -%}   {{ badge('red', status) }}
+  {%- elif 'PASS' in s -%}                        {{ badge('green', status) }}
+  {%- else -%}                                    {{ badge('gray', status or '—') }}
+  {%- endif -%}
+{%- endmacro %}

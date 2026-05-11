@@ -1,0 +1,48 @@
+{# ============================================================
+   data_table — the full-width gap-table layout used on compliance,
+   product (BOM), and anywhere we render derived rows.
+
+   The body is custom because cells often hold badges + links, so
+   call with {% call %} and yield rows yourself:
+
+     {% call data_table(headers=['Standard','Clause','Status','Notes']) %}
+       {% for row in matrix.rows %}
+       <tr class="bg-gray-950 hover:bg-gray-900 transition-colors">
+         <td class="px-4 py-3 text-gray-300 font-medium text-xs">{{ row.standard }}</td>
+         …
+       </tr>
+       {% endfor %}
+     {% endcall %}
+
+   variant : default (full-bleed) | compact (inside a card)
+   ============================================================ #}
+{% macro data_table(headers, variant='default') %}
+  {%- set head_bg = 'bg-gray-900' if variant == 'default' else 'bg-gray-800' -%}
+  {%- set wrap_cls = 'overflow-x-auto rounded-xl border border-gray-800' if variant == 'default' else 'rounded-lg border border-gray-800 overflow-hidden' -%}
+  {%- set cell_pad = 'px-4 py-3' if variant == 'default' else 'px-3 py-2' -%}
+  {%- set text_size = 'text-sm' if variant == 'default' else 'text-xs' -%}
+  <div class="{{ wrap_cls }}">
+    <table class="w-full {{ text_size }}">
+      <thead class="{{ head_bg }} text-gray-400 text-xs uppercase">
+        <tr>
+          {% for h in headers %}
+          <th class="{{ cell_pad }} text-left font-medium">{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {{ caller() }}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
+
+
+{# Convenience row helper for the common case: simple text cells. #}
+{% macro tr_text(cells, hover=true) -%}
+  <tr class="bg-gray-950 {% if hover %}hover:bg-gray-900 transition-colors{% endif %}">
+    {% for c in cells %}
+    <td class="px-4 py-3 text-gray-300 text-xs whitespace-nowrap">{{ c }}</td>
+    {% endfor %}
+  </tr>
+{%- endmacro %}

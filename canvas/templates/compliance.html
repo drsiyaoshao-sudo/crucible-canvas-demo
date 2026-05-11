@@ -1,23 +1,22 @@
 {% extends "base.html" %}
+{% from "_components/badge.html" import badge, priority, status_badge %}
+{% from "_components/card.html" import section_label %}
+{% from "_components/banner.html" import banner %}
+{% from "_components/empty_state.html" import empty %}
+{% from "_components/breadcrumb.html" import breadcrumb %}
+{% from "_components/data_table.html" import data_table %}
+
 {% block title %}Compliance — {{ slug }} — Crucible-Canvas{% endblock %}
 
 {% block content %}
 
-<!-- Breadcrumb -->
-<div class="text-xs text-gray-500 mb-6">
-  <a href="/dashboard" class="hover:text-gray-300">dashboard</a>
-  <span class="mx-2">›</span>
-  <a href="/product/{{ slug }}" class="hover:text-gray-300">{{ slug }}</a>
-  <span class="mx-2">›</span>
-  <span class="text-gray-300">compliance</span>
-</div>
+{{ breadcrumb([('dashboard','/dashboard'), (slug, '/product/' ~ slug), ('compliance', None)]) }}
 
 <h1 class="text-2xl font-bold text-white mb-8">Compliance — {{ slug }}</h1>
 
-<!-- Suggestion-only banner -->
 {% if matrix.is_prescreen %}
-<div class="mb-6 rounded-lg border border-yellow-700 bg-yellow-900/30 px-5 py-3 text-sm text-yellow-300">
-  ⚠ <strong>SUGGESTION ONLY</strong> — This matrix was generated in prescreen mode. No binding determination has been made. Verify with a qualified compliance engineer.
+<div class="mb-6">
+  {{ banner('warn', 'SUGGESTION ONLY', 'This matrix was generated in prescreen mode. No binding determination has been made. Verify with a qualified compliance engineer.') }}
 </div>
 {% endif %}
 
@@ -26,47 +25,27 @@
   <!-- Priority standards (left) -->
   <div class="space-y-6">
     <section>
-      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Priority Standards</h2>
+      {{ section_label('Priority Standards') }}
       {% if not prescreen.found %}
-      <div class="rounded-xl border border-dashed border-gray-700 p-5 text-center text-gray-500 text-sm">
-        No prescreen yet.<br>
-        <code class="text-emerald-500 text-xs">/compliance screen {{ slug }}</code>
-      </div>
+        {{ empty('No prescreen yet.', hint='/compliance screen ' ~ slug, size='sm') }}
       {% else %}
-      <div class="rounded-xl border border-gray-800 bg-gray-900 overflow-hidden">
-        <table class="w-full text-xs">
-          <thead class="bg-gray-800 text-gray-400">
-            <tr>
-              <th class="px-3 py-2 text-left">P</th>
-              <th class="px-3 py-2 text-left">Standard</th>
-              <th class="px-3 py-2 text-left">Jurisdiction</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-800">
-            {% for row in prescreen.rows %}
-            <tr class="hover:bg-gray-800/50">
-              <td class="px-3 py-2">
-                {% if row.priority == '1' %}<span class="badge-red">P1</span>
-                {% elif row.priority == '2' %}<span class="badge-amber">P2</span>
-                {% else %}<span class="badge-gray">P3</span>{% endif %}
-              </td>
-              <td class="px-3 py-2 text-gray-300 font-medium">{{ row.standard }}</td>
-              <td class="px-3 py-2 text-gray-500">{{ row.jurisdiction }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+        {% call data_table(headers=['P','Standard','Jurisdiction'], variant='compact') %}
+          {% for row in prescreen.rows %}
+          <tr class="hover:bg-gray-800/50">
+            <td class="px-3 py-2">{{ priority(row.priority) }}</td>
+            <td class="px-3 py-2 text-gray-300 font-medium">{{ row.standard }}</td>
+            <td class="px-3 py-2 text-gray-500">{{ row.jurisdiction }}</td>
+          </tr>
+          {% endfor %}
+        {% endcall %}
       {% endif %}
     </section>
 
     <!-- Regulatory calendar -->
     <section>
-      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Regulatory Calendar</h2>
+      {{ section_label('Regulatory Calendar') }}
       {% if not calendar %}
-      <div class="rounded-xl border border-dashed border-gray-700 p-5 text-center text-gray-500 text-sm">
-        No dates scheduled yet.
-      </div>
+        {{ empty('No dates scheduled yet.', size='sm') }}
       {% else %}
       <div class="space-y-2">
         {% for entry in calendar %}
@@ -74,9 +53,9 @@
           <div class="flex justify-between items-center">
             <span class="text-gray-300 font-medium">{{ entry.standard }}</span>
             {% if entry.days_until != '—' and entry.days_until != '' %}
-            <span class="badge-amber">{{ entry.days_until }}d</span>
+              {{ badge('amber', entry.days_until ~ 'd') }}
             {% else %}
-            <span class="badge-gray">—</span>
+              {{ badge('gray', '—') }}
             {% endif %}
           </div>
           <div class="text-gray-600 mt-1">Next renewal: {{ entry.next_renewal }}</div>
@@ -89,50 +68,23 @@
 
   <!-- Gap table (right, spans 2 cols) -->
   <div class="lg:col-span-2">
-    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Compliance Gap Table</h2>
+    {{ section_label('Compliance Gap Table') }}
     {% if not matrix.found %}
-    <div class="rounded-xl border border-dashed border-gray-700 p-10 text-center text-gray-500">
-      No compliance matrix yet.<br>
-      <span class="text-xs mt-2 block">
-        Run <code class="text-emerald-500">/compliance screen {{ slug }}</code> then
-        <code class="text-emerald-500">/compliance map {{ slug }}</code>
-      </span>
-    </div>
+      {{ empty('No compliance matrix yet.',
+               hint='/compliance screen ' ~ slug ~ ' then /compliance map ' ~ slug,
+               size='lg') }}
     {% else %}
-    <div class="overflow-x-auto rounded-xl border border-gray-800">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-900 text-gray-400 text-xs uppercase">
-          <tr>
-            <th class="px-4 py-3 text-left">Standard</th>
-            <th class="px-4 py-3 text-left">Clause</th>
-            <th class="px-4 py-3 text-left">Status</th>
-            <th class="px-4 py-3 text-left">Notes</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-800">
-          {% for row in matrix.rows %}
-          <tr class="bg-gray-950 hover:bg-gray-900 transition-colors">
-            <td class="px-4 py-3 text-gray-300 font-medium text-xs">{{ row.standard }}</td>
-            <td class="px-4 py-3 text-gray-400 text-xs">{{ row.clause }}</td>
-            <td class="px-4 py-3">
-              {% set s = row.status | upper %}
-              {% if 'LIKELY_PASS' in s or 'PASS' in s and 'CONDITIONAL' not in s %}
-              <span class="badge-green">{{ row.status }}</span>
-              {% elif 'CONDITIONAL' in s %}
-              <span class="badge-amber">{{ row.status }}</span>
-              {% elif 'NOT_TESTED' in s or 'FAIL' in s %}
-              <span class="badge-red">{{ row.status }}</span>
-              {% else %}
-              <span class="badge-gray">{{ row.status }}</span>
-              {% endif %}
-            </td>
-            <td class="px-4 py-3 text-gray-500 text-xs">{{ row.notes }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="mt-2 text-xs text-gray-600">Source: {{ matrix.filename }}</div>
+      {% call data_table(headers=['Standard','Clause','Status','Notes']) %}
+        {% for row in matrix.rows %}
+        <tr class="bg-gray-950 hover:bg-gray-900 transition-colors">
+          <td class="px-4 py-3 text-gray-300 font-medium text-xs">{{ row.standard }}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">{{ row.clause }}</td>
+          <td class="px-4 py-3">{{ status_badge(row.status) }}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">{{ row.notes }}</td>
+        </tr>
+        {% endfor %}
+      {% endcall %}
+      <div class="mt-2 text-xs text-gray-600">Source: {{ matrix.filename }}</div>
     {% endif %}
   </div>
 

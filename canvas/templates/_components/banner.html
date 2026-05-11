@@ -1,0 +1,23 @@
+{# ============================================================
+   banner — full-width notice. Always above the H1 or at the top
+   of the section it qualifies.
+
+     {{ banner('warn', 'SUGGESTION ONLY', 'Verify with counsel.') }}
+     {{ banner('error', 'PIPELINE ERROR', err.message) }}
+     {{ banner('ok', 'PIPELINE COMPLETE', '4 candidates written.') }}
+
+   kind : warn (amber) | error (red) | ok (emerald) | info (purple)
+   ============================================================ #}
+{% macro banner(kind, title, body='', glyph=None) -%}
+  {%- set palette = {
+    'warn':  ('yellow-700','yellow-900/30','yellow-300','⚠'),
+    'error': ('red-800','red-950/60','red-300','✗'),
+    'ok':    ('emerald-800','emerald-950/40','emerald-300','✓'),
+    'info':  ('purple-700','purple-900/30','purple-300','◈'),
+  } -%}
+  {%- set p = palette[kind] if kind in palette else palette['info'] -%}
+  {%- set g = glyph if glyph is not none else p[3] -%}
+  <div class="rounded-lg border border-{{ p[0] }} bg-{{ p[1] }} px-5 py-3 text-sm text-{{ p[2] }}">
+    {{ g }} <strong>{{ title }}</strong>{% if body %} — {{ body | safe }}{% endif %}
+  </div>
+{%- endmacro %}

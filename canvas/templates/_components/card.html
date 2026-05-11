@@ -1,0 +1,27 @@
+{# ============================================================
+   card — standard surface. rounded-xl border-gray-800 bg-gray-900.
+   Two flavors via {% call %} so the body is arbitrary markup:
+
+     {% call card(padding='p-5', hover=true) %}
+       …card body…
+     {% endcall %}
+
+     {% call card(padding='p-3', variant='inset') %}
+       …nested row…
+     {% endcall %}
+
+   variant : default | inset (uses border + rounded-lg, no bg)
+   ============================================================ #}
+{% macro card(padding='p-5', hover=false, variant='default', extra='') %}
+  {%- if variant == 'inset' -%}
+    <div class="border border-gray-800 rounded-lg {{ padding }} {{ extra }}">{{ caller() }}</div>
+  {%- else -%}
+    <div class="rounded-xl border border-gray-800 bg-gray-900 {{ padding }}{% if hover %} card-hover{% endif %} {{ extra }}">{{ caller() }}</div>
+  {%- endif -%}
+{% endmacro %}
+
+
+{# Section label — the uppercase tracking-wider eyebrow above every card group. #}
+{% macro section_label(text, extra='') -%}
+  <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 {{ extra }}">{{ text }}</h2>
+{%- endmacro %}

@@ -1,0 +1,191 @@
+/* ============================================================
+   Crucible-Canvas — design tokens & component utilities
+   ============================================================ */
+
+/* ---- Tokens ----------------------------------------------- */
+:root {
+  --c-bg:        #030712;
+  --c-surface:   #0d1117;
+  --c-surface-2: #111827;
+  --c-surface-3: #1a2332;
+  --c-border:    #1f2937;
+  --c-border-2:  #374151;
+
+  --c-fg:        #f3f4f6;
+  --c-fg-soft:   #d1d5db;
+  --c-fg-mute:   #9ca3af;
+  --c-fg-meta:   #6b7280;
+  --c-fg-dim:    #4b5563;
+
+  --c-emerald:   #10b981;
+  --c-emerald-l: #34d399;
+  --c-purple:    #a855f7;
+  --c-amber:     #f59e0b;
+  --c-red:       #ef4444;
+  --c-blue:      #3b82f6;
+  --c-cyan:      #06b6d4;
+  --c-orange:    #f97316;
+}
+
+/* ---- Typography ------------------------------------------ */
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mono, code, kbd, pre, .font-mono {
+  font-family: 'SF Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+}
+
+/* ---- Badges ---------------------------------------------- */
+.badge-green, .badge-amber, .badge-red,
+.badge-gray, .badge-blue, .badge-purple {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: .375rem;
+  font-size: .6875rem;
+  font-weight: 600;
+  border: 1px solid;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
+.badge-green  { background: rgba(6,78,59,.55);   color: #6ee7b7; border-color: rgba(4,120,87,.45); }
+.badge-amber  { background: rgba(113,63,18,.55);  color: #fde68a; border-color: rgba(161,98,7,.45); }
+.badge-red    { background: rgba(127,29,29,.55);  color: #fca5a5; border-color: rgba(185,28,28,.45); }
+.badge-gray   { background: rgba(31,41,55,.7);    color: #9ca3af; border-color: rgba(55,65,81,.6); }
+.badge-blue   { background: rgba(30,58,138,.45);  color: #93c5fd; border-color: rgba(29,78,216,.35); }
+.badge-purple { background: rgba(88,28,135,.45);  color: #d8b4fe; border-color: rgba(126,34,206,.35); }
+
+/* ---- Spinner --------------------------------------------- */
+@keyframes crucible-spin { to { transform: rotate(360deg); } }
+.spinner {
+  display: inline-block;
+  width: .75rem; height: .75rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 9999px;
+  animation: crucible-spin .7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ---- Alpine cloak ---------------------------------------- */
+[x-cloak] { display: none !important; }
+
+/* ---- Card hover ------------------------------------------ */
+.card-hover {
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+.card-hover:hover {
+  border-color: #374151;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(55,65,81,.25);
+  transform: translateY(-1px);
+}
+
+/* ---- Stat pill ------------------------------------------- */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: 9999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-fg-mute);
+}
+.stat-pill b { color: var(--c-fg-soft); font-weight: 600; }
+
+/* ---- Legend pills (graph page) --------------------------- */
+.legend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.07);
+  font-size: 11px;
+  color: var(--c-fg-mute);
+  white-space: nowrap;
+  user-select: none;
+}
+.legend-divider {
+  display: inline-block;
+  width: 1px; height: 16px;
+  background: rgba(255,255,255,.07);
+  margin: 0 4px;
+  vertical-align: middle;
+}
+
+/* ---- Graph sidebar panel animation ----------------------- */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.graph-panel { animation: panelIn 150ms ease; }
+
+/* ---- Graph canvas ---------------------------------------- */
+#cy { background: #0a0e17 !important; }
+
+/* ---- Zoom control buttons -------------------------------- */
+.zoom-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-fg-mute);
+  font-size: 15px; line-height: 1;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+}
+.zoom-btn:hover { border-color: var(--c-border-2); color: var(--c-fg); background: #1a2332; }
+
+/* ---- Sidebar field label --------------------------------- */
+.sd-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--c-fg-meta);
+  margin-bottom: 6px;
+}
+
+/* ---- Scrollbar ------------------------------------------- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a5568; }
+
+/* ---- Table refinements ----------------------------------- */
+table { border-collapse: collapse; }
+
+/* ---- Pipeline run button --------------------------------- */
+.run-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--c-border);
+  background: transparent;
+  color: var(--c-fg-mute);
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms, background 120ms;
+  white-space: nowrap;
+}
+.run-btn:hover:not(:disabled) { border-color: var(--c-border-2); color: var(--c-fg-soft); background: rgba(255,255,255,.04); }
+.run-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ---- Nav active state ------------------------------------ */
+.nav-link {
+  position: relative;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-fg-mute);
+  transition: color 120ms, background 120ms;
+  text-decoration: none;
+}
+.nav-link:hover { color: var(--c-fg-soft); background: rgba(255,255,255,.05); }
+.nav-link.active { color: var(--c-fg); background: rgba(255,255,255,.07); }
