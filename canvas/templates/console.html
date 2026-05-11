@@ -6,12 +6,12 @@
 
   <!-- Header -->
   <div class="flex items-baseline gap-4 mb-4">
-    <h1 class="text-xl font-bold text-white">⚖ Judicial Console</h1>
-    <span class="text-gray-500 text-xs">attorney-A · attorney-B · Justice presiding</span>
+    <h1 class="text-xl font-bold text-white">⚖ Review Console</h1>
+    <span class="text-gray-500 text-xs">examiner-A · examiner-B · Chair presiding</span>
     <div class="flex-1"></div>
     <button @click="showSetup = !showSetup"
             class="px-3 py-1 rounded text-xs border border-purple-700 text-purple-400 hover:bg-purple-900/40 transition">
-      + New Hearing
+      + New Session
     </button>
     <button @click="showClear = !showClear"
             class="px-3 py-1 rounded text-xs border border-red-800 text-red-400 hover:bg-red-950/40 transition">
@@ -45,24 +45,24 @@
   <!-- New hearing setup panel -->
   <div x-show="showSetup" x-cloak
        class="mb-4 rounded-xl border border-purple-800 bg-purple-950/30 p-4 space-y-3">
-    <div class="text-xs text-purple-400 uppercase tracking-wider font-semibold mb-2">Declare Judicial Hearing</div>
+    <div class="text-xs text-purple-400 uppercase tracking-wider font-semibold mb-2">Declare Review Session</div>
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <label class="text-xs text-gray-500 block mb-1">Motion — the question to resolve</label>
+        <label class="text-xs text-gray-500 block mb-1">Motion — the technical question to resolve</label>
         <input x-model="setup.motion" type="text"
-               placeholder='e.g. "Should GaitSense IP candidates proceed to patent counsel review?"'
+               placeholder='e.g. "Is the push-off primary trigger novel over prior art step detectors?"'
                class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-purple-600" />
       </div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Attorney-A position (argue FOR)</label>
+        <label class="text-xs text-gray-500 block mb-1">Examiner-A position (argue FOR)</label>
         <input x-model="setup.position_a" type="text"
-               placeholder="Candidates are novel and should proceed"
+               placeholder="Novel — push-off trigger is not disclosed in prior art"
                class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-red-700" />
       </div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Attorney-B position (argue AGAINST)</label>
+        <label class="text-xs text-gray-500 block mb-1">Examiner-B position (argue AGAINST)</label>
         <input x-model="setup.position_b" type="text"
-               placeholder="Candidates lack novelty — do not proceed"
+               placeholder="Not novel — push-off detection is obvious from prior art"
                class="w-full bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-blue-700" />
       </div>
       <div>
@@ -88,7 +88,7 @@
       <button @click="declareHearing()"
               :disabled="!setup.motion || !setup.position_a || !setup.position_b"
               class="px-4 py-1.5 rounded text-sm font-semibold bg-purple-700 hover:bg-purple-600 text-white disabled:opacity-40 transition">
-        Declare Hearing
+        Declare Session
       </button>
       <button @click="showSetup = false" class="text-gray-500 hover:text-gray-300 text-xs">cancel</button>
       <span x-show="setupError" x-cloak class="text-red-400 text-xs" x-text="setupError"></span>
@@ -109,7 +109,7 @@
                     ? 'bg-gray-800 text-white border-purple-600'
                     : 'text-gray-500 hover:text-gray-300 border-transparent'"
                   class="px-3 py-1.5 rounded-t text-xs font-mono border-b-2 transition">
-            <span x-text="'#' + s.case_number + ' ' + s.motion.substring(0,28) + (s.motion.length > 28 ? '…' : '')"></span>
+            <span x-text="(s.parent_id ? '↳ ' : '') + '#' + s.case_number + ' ' + s.motion.substring(0,28) + (s.motion.length > 28 ? '…' : '')"></span>
             <span x-show="s.status === 'ruled'" class="ml-1 text-emerald-500">✓</span>
           </button>
         </template>
@@ -129,6 +129,14 @@
           <div class="flex items-center gap-3 rounded-lg bg-indigo-950/40 border border-indigo-800/50 px-4 py-2.5 text-xs text-indigo-300 font-mono">
             <svg class="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
             <span>Evidence orchestrator running — dispatching list_forge_files / read_forge_file tools…</span>
+          </div>
+        </template>
+
+        <!-- Clerk spawning indicator -->
+        <template x-if="activeSession && activeSession.status === 'gathering_evidence' || (activeSession && activeSession.status === 'open' && !activeSession.clerk_spawned)">
+          <div class="flex items-center gap-3 rounded-lg bg-gray-800/60 border border-gray-700/50 px-4 py-2 text-xs text-gray-400 font-mono">
+            <svg class="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            <span>Spawning clerk agent…</span>
           </div>
         </template>
 
@@ -164,27 +172,51 @@
               </div>
             </template>
 
-            <!-- Active agent indicator -->
-            <template x-if="activeSession && activeSession.active">
-              <div :class="activeSession.active === 'attorney-a'
+            <!-- Both-active parallel arguing indicator -->
+            <template x-if="activeSession && activeSession.active.length === 2">
+              <div class="rounded-lg border border-purple-800/60 bg-purple-950/20 px-4 py-2.5">
+                <div class="flex items-center gap-3 text-xs text-purple-300 font-mono">
+                  <svg class="animate-spin h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                  <span>Parallel argument in progress — both attorneys arguing simultaneously (isolated context snapshots)</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Single active attorney indicator -->
+            <template x-if="activeSession && activeSession.active.length === 1">
+              <div :class="activeSession.active[0] === 'attorney-a'
                              ? 'border-l-4 border-red-700 pl-4'
                              : 'border-l-4 border-blue-700 pl-4'">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-bold uppercase tracking-wider"
-                        :class="activeSession.active === 'attorney-a' ? 'text-red-400' : 'text-blue-400'"
-                        x-text="speakerLabel(activeSession.active)"></span>
+                        :class="activeSession.active[0] === 'attorney-a' ? 'text-red-400' : 'text-blue-400'"
+                        x-text="speakerLabel(activeSession.active[0])"></span>
                   <span class="flex gap-1">
                     <span class="w-1.5 h-1.5 rounded-full animate-bounce"
-                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          :class="activeSession.active[0] === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
                           style="animation-delay:0ms"></span>
                     <span class="w-1.5 h-1.5 rounded-full animate-bounce"
-                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          :class="activeSession.active[0] === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
                           style="animation-delay:150ms"></span>
                     <span class="w-1.5 h-1.5 rounded-full animate-bounce"
-                          :class="activeSession.active === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
+                          :class="activeSession.active[0] === 'attorney-a' ? 'bg-red-500' : 'bg-blue-500'"
                           style="animation-delay:300ms"></span>
                   </span>
                   <span class="text-gray-600 text-xs">arguing…</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- Child hearings chip list -->
+            <template x-if="activeSession && activeSession.child_hearing_ids.length > 0">
+              <div class="rounded-lg border border-cyan-900/60 bg-cyan-950/20 px-4 py-2.5">
+                <div class="text-xs text-cyan-400 uppercase tracking-wider font-semibold mb-1.5">Child Hearings Declared</div>
+                <div class="flex flex-wrap gap-1.5">
+                  <template x-for="cid in activeSession.child_hearing_ids" :key="cid">
+                    <button @click="switchToHearing(cid)"
+                            class="px-2 py-0.5 rounded text-xs bg-cyan-900/40 text-cyan-300 border border-cyan-800 hover:bg-cyan-900 transition font-mono"
+                            x-text="'↳ ' + (hearingById(cid)?.motion?.substring(0,40) || cid)"></button>
+                  </template>
                 </div>
               </div>
             </template>
@@ -193,37 +225,66 @@
             <template x-if="activeSession && activeSession.status === 'ruled'">
               <div class="rounded-lg border border-emerald-700 bg-emerald-950/40 px-4 py-3 mt-4">
                 <div class="text-xs text-emerald-400 uppercase tracking-wider font-semibold mb-1">Hearing Closed — Ruling Recorded</div>
-                <div class="text-emerald-200 text-xs">Written to docs/governance/case_law.md</div>
+                <div class="text-emerald-200 text-xs">Written to docs/governance/case_law.md by prevailing counsel.</div>
               </div>
             </template>
           </div>
         </template>
       </div>
 
-      <!-- Justice input bar (bottom of transcript pane) -->
+      <!-- Justice input bar -->
       <div class="border-t border-gray-800 px-4 py-3 space-y-2">
         <div class="flex gap-2 flex-wrap">
-          <!-- Direct attorney buttons -->
+          <!-- Individual examiner buttons -->
           <button @click="directAttorney('attorney-a')"
-                  :disabled="!activeSession || !!activeSession.active || activeSession.status !== 'open'"
+                  :disabled="!activeSession || activeSession.active.includes('attorney-a') || activeSession.status !== 'open'"
                   class="px-3 py-1.5 rounded text-xs font-semibold bg-red-900/60 text-red-300 border border-red-800 hover:bg-red-900 disabled:opacity-30 transition">
-            <span x-show="!activeSession || activeSession.status !== 'gathering_evidence'">▶ Attorney-A argue</span>
-            <span x-show="activeSession && activeSession.status === 'gathering_evidence'" x-cloak>⏳ gathering evidence…</span>
+            ▶ Exam-A argue
           </button>
           <button @click="directAttorney('attorney-b')"
-                  :disabled="!activeSession || !!activeSession.active || activeSession.status !== 'open'"
+                  :disabled="!activeSession || activeSession.active.includes('attorney-b') || activeSession.status !== 'open'"
                   class="px-3 py-1.5 rounded text-xs font-semibold bg-blue-900/60 text-blue-300 border border-blue-800 hover:bg-blue-900 disabled:opacity-30 transition">
-            ▶ Attorney-B argue
+            ▶ Exam-B argue
+          </button>
+          <!-- Parallel argue button -->
+          <button @click="argueBoth()"
+                  :disabled="!activeSession || activeSession.active.length > 0 || activeSession.status !== 'open'"
+                  class="px-3 py-1.5 rounded text-xs font-semibold bg-purple-900/60 text-purple-300 border border-purple-700 hover:bg-purple-900 disabled:opacity-30 transition"
+                  title="Both attorneys argue simultaneously with isolated context snapshots">
+            ▶▶ Both (parallel)
           </button>
           <div class="flex-1"></div>
           <select x-model="justiceTarget"
                   class="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded px-2 py-1 font-mono focus:outline-none">
-            <option value="justice">Speak as Justice</option>
-            <option value="direct-a">Direct to Attorney-A</option>
-            <option value="direct-b">Direct to Attorney-B</option>
+            <option value="justice">Speak as Chair</option>
+            <option value="direct-a">Direct to Examiner-A</option>
+            <option value="direct-b">Direct to Examiner-B</option>
+            <option value="gather-more">Gather More Evidence</option>
             <option value="ruling">Issue Ruling</option>
           </select>
         </div>
+
+        <!-- Ruling-mode: prevailing attorney selector -->
+        <div x-show="justiceTarget === 'ruling'" x-cloak class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">Prevailing counsel:</span>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" x-model="prevailingAttorney" value="attorney-a"
+                   class="text-red-500 focus:ring-red-600" />
+            <span class="text-xs text-red-400 font-mono">Examiner-A</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" x-model="prevailingAttorney" value="attorney-b"
+                   class="text-blue-500 focus:ring-blue-600" />
+            <span class="text-xs text-blue-400 font-mono">Examiner-B</span>
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" x-model="prevailingAttorney" value=""
+                   class="text-gray-500" />
+            <span class="text-xs text-gray-500 font-mono">None / split</span>
+          </label>
+          <span class="text-xs text-gray-600 ml-1">— prevailing examiner drafts the review record</span>
+        </div>
+
         <div class="flex gap-2">
           <textarea x-model="justiceInput"
                     @keydown.meta.enter="submitJustice()"
@@ -232,13 +293,13 @@
                     :disabled="!activeSession || activeSession.status === 'ruled'"
                     class="flex-1 bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-amber-600 resize-none disabled:opacity-40"></textarea>
           <button @click="submitJustice()"
-                  :disabled="!justiceInput.trim() || !activeSession || !!activeSession.active || activeSession.status === 'ruled'"
-                  :class="justiceTarget === 'ruling' ? 'bg-emerald-700 hover:bg-emerald-600' : 'bg-amber-700 hover:bg-amber-600'"
+                  :disabled="!justiceInput.trim() || !activeSession || activeSession.active.length > 0 && justiceTarget !== 'gather-more' || activeSession.status === 'ruled'"
+                  :class="justiceTarget === 'ruling' ? 'bg-emerald-700 hover:bg-emerald-600' : justiceTarget === 'gather-more' ? 'bg-indigo-700 hover:bg-indigo-600' : 'bg-amber-700 hover:bg-amber-600'"
                   class="px-4 rounded-lg text-xs font-semibold text-white disabled:opacity-30 transition self-stretch">
-            <span x-text="justiceTarget === 'ruling' ? 'Rule' : justiceTarget === 'direct-a' ? '→ A' : justiceTarget === 'direct-b' ? '→ B' : 'Speak'"></span>
+            <span x-text="justiceTarget === 'ruling' ? 'Rule' : justiceTarget === 'direct-a' ? '→ A' : justiceTarget === 'direct-b' ? '→ B' : justiceTarget === 'gather-more' ? '+ Evidence' : 'Speak'"></span>
           </button>
         </div>
-        <div class="text-gray-700 text-xs">⌘↵ to send · Attorney arguments run as background tasks · Ruling writes to case_law.md</div>
+        <div class="text-gray-700 text-xs">⌘↵ to send · Parallel argue fires both examiners with isolated transcript snapshots · Ruling calls prevailing examiner to draft the review record</div>
       </div>
     </div>
 
@@ -249,22 +310,49 @@
       <div class="rounded-xl border border-gray-800 bg-gray-900 p-4">
         <div class="text-xs text-cyan-400 uppercase tracking-wider font-semibold mb-3">Agent Status</div>
         <div class="space-y-2">
+          <!-- Clerk -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full"
+                  :class="activeSession && activeSession.status === 'gathering_evidence'
+                            ? 'bg-gray-400 animate-pulse'
+                            : (activeSession && activeSession.clerk_spawned ? 'bg-emerald-500' : 'bg-gray-700')"></span>
+            <span class="text-xs font-mono text-gray-400">clerk</span>
+            <span class="text-xs text-gray-600"
+                  x-text="!activeSession ? 'idle'
+                    : activeSession.status === 'gathering_evidence' ? 'spawning…'
+                    : (activeSession.clerk_spawned ? 'spawned' : 'spawning…')"></span>
+          </div>
+          <!-- Orchestrator -->
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full"
+                  :class="activeSession && activeSession.status === 'gathering_evidence'
+                            ? 'bg-indigo-400 animate-pulse' : 'bg-gray-700'"></span>
+            <span class="text-xs font-mono text-indigo-400">orchestrator</span>
+            <span class="text-xs text-gray-600"
+                  x-text="activeSession && activeSession.status === 'gathering_evidence' ? 'gathering…' : 'idle'"></span>
+          </div>
+          <!-- Examiners -->
           <template x-for="a in ['attorney-a', 'attorney-b']" :key="a">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full"
-                    :class="activeSession && activeSession.active === a
+                    :class="activeSession && activeSession.active.includes(a)
                               ? (a === 'attorney-a' ? 'bg-red-400 animate-pulse' : 'bg-blue-400 animate-pulse')
                               : 'bg-gray-700'"></span>
               <span class="text-xs font-mono"
                     :class="a === 'attorney-a' ? 'text-red-400' : 'text-blue-400'"
-                    x-text="a"></span>
+                    x-text="a === 'attorney-a' ? 'examiner-a' : 'examiner-b'"></span>
               <span class="text-xs text-gray-600"
-                    x-text="activeSession && activeSession.active === a ? 'arguing…' : 'idle'"></span>
+                    x-text="activeSession && activeSession.active.includes(a) ? 'arguing…' : 'idle'"></span>
+              <!-- Parallel indicator -->
+              <template x-if="activeSession && activeSession.active.length === 2 && activeSession.active.includes(a)">
+                <span class="text-xs text-purple-500 font-mono">⦿ parallel</span>
+              </template>
             </div>
           </template>
+          <!-- Chair -->
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-600"></span>
-            <span class="text-xs font-mono text-amber-400">justice</span>
+            <span class="text-xs font-mono text-amber-400">chair</span>
             <span class="text-xs text-gray-600">presiding</span>
           </div>
         </div>
@@ -277,6 +365,22 @@
               <template x-for="f in activeSession.evidence_files" :key="f">
                 <div class="text-xs text-gray-600 font-mono truncate" x-text="f"></div>
               </template>
+            </div>
+            <!-- Gather more button -->
+            <button @click="showGatherMore = !showGatherMore"
+                    :disabled="!activeSession || activeSession.status === 'ruled'"
+                    class="mt-2 w-full px-2 py-1 rounded text-xs bg-indigo-900/40 text-indigo-300 border border-indigo-800 hover:bg-indigo-900 disabled:opacity-30 transition">
+              + Gather More Evidence
+            </button>
+            <div x-show="showGatherMore" x-cloak class="mt-2 space-y-1">
+              <input x-model="gatherQuery" type="text"
+                     placeholder="e.g. 'prior art for claim 3'"
+                     class="w-full bg-gray-950 border border-gray-700 rounded px-2 py-1 text-xs text-gray-100 placeholder-gray-600 font-mono focus:outline-none focus:border-indigo-600" />
+              <button @click="gatherMore()" :disabled="!gatherQuery.trim() && false"
+                      class="w-full px-2 py-1 rounded text-xs bg-indigo-700 hover:bg-indigo-600 text-white transition">
+                Dispatch Orchestrator
+              </button>
+              <span x-show="gatherMsg" x-cloak class="text-xs font-mono text-indigo-400" x-text="gatherMsg"></span>
             </div>
           </div>
         </template>
@@ -354,6 +458,10 @@ function consoleApp() {
     setup: { motion: '', position_a: '', position_b: '', slug: '{{ slugs[0] if slugs else "" }}', topic: 'patent' },
     justiceInput: '',
     justiceTarget: 'justice',
+    prevailingAttorney: '',
+    showGatherMore: false,
+    gatherQuery: '',
+    gatherMsg: '',
     forgeJobs: [],
     cmd: '',
     cmdMsg: '',
@@ -366,7 +474,10 @@ function consoleApp() {
     },
 
     async poll() {
-      if (this.activeId && (this.activeSession?.active || this.activeSession?.status === 'gathering_evidence')) {
+      if (this.activeId && (
+        this.activeSession?.active?.length > 0 ||
+        this.activeSession?.status === 'gathering_evidence'
+      )) {
         await this.fetchHearing(this.activeId);
       }
       await this.fetchForgeJobs();
@@ -389,9 +500,9 @@ function consoleApp() {
         const r = await fetch(`/hearing/${id}`);
         const d = await r.json();
         this.activeSession = d;
-        // keep hearings list in sync
         const idx = this.hearings.findIndex(h => h.id === id);
         if (idx >= 0) this.hearings[idx] = d;
+        else this.hearings.unshift(d);
         this.$nextTick(() => {
           const t = document.getElementById('transcript');
           if (t) t.scrollTop = t.scrollHeight;
@@ -405,6 +516,15 @@ function consoleApp() {
         const d = await r.json();
         this.forgeJobs = d.jobs.slice(0, 5);
       } catch(_) {}
+    },
+
+    hearingById(id) {
+      return this.hearings.find(h => h.id === id);
+    },
+
+    switchToHearing(id) {
+      this.activeId = id;
+      this.fetchHearing(id);
     },
 
     async declareHearing() {
@@ -435,10 +555,46 @@ function consoleApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ directive: '' }),
         });
-        this.activeSession.active = attorney;
+        if (!this.activeSession.active.includes(attorney)) {
+          this.activeSession.active.push(attorney);
+        }
         this.pollTimer && clearInterval(this.pollTimer);
         this.pollTimer = setInterval(() => this.poll(), 1500);
       } catch(_) {}
+    },
+
+    async argueBoth() {
+      if (!this.activeId || !this.activeSession) return;
+      try {
+        await fetch(`/hearing/${this.activeId}/argue_both`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ directive: '' }),
+        });
+        this.activeSession.active = ['attorney-a', 'attorney-b'];
+        this.pollTimer && clearInterval(this.pollTimer);
+        this.pollTimer = setInterval(() => this.poll(), 1500);
+      } catch(_) {}
+    },
+
+    async gatherMore() {
+      if (!this.activeId) return;
+      this.gatherMsg = 'Dispatching orchestrator…';
+      try {
+        await fetch(`/hearing/${this.activeId}/gather_more`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: this.gatherQuery }),
+        });
+        this.gatherMsg = '✓ Orchestrator dispatched';
+        this.gatherQuery = '';
+        this.showGatherMore = false;
+        // Poll faster while evidence is being gathered
+        this.pollTimer && clearInterval(this.pollTimer);
+        this.pollTimer = setInterval(() => this.poll(), 1500);
+      } catch(e) {
+        this.gatherMsg = `✗ ${e.message}`;
+      }
     },
 
     async submitJustice() {
@@ -449,23 +605,29 @@ function consoleApp() {
         await fetch(`/hearing/${this.activeId}/rule`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ruling: content }),
+          body: JSON.stringify({ ruling: content, prevailing: this.prevailingAttorney }),
+        });
+      } else if (this.justiceTarget === 'gather-more') {
+        await fetch(`/hearing/${this.activeId}/gather_more`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: content }),
         });
       } else if (this.justiceTarget === 'direct-a' || this.justiceTarget === 'direct-b') {
         const atty = this.justiceTarget === 'direct-a' ? 'attorney-a' : 'attorney-b';
-        // First log justice directive in transcript
         await fetch(`/hearing/${this.activeId}/justice`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: `[To ${atty}]: ${content}` }),
         });
-        // Then trigger attorney with that directive
         await fetch(`/hearing/${this.activeId}/argue/${atty}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ directive: content }),
         });
-        this.activeSession.active = atty;
+        if (!this.activeSession.active.includes(atty)) {
+          this.activeSession.active.push(atty);
+        }
       } else {
         await fetch(`/hearing/${this.activeId}/justice`, {
           method: 'POST',
@@ -527,8 +689,8 @@ function consoleApp() {
     },
 
     speakerLabel(speaker) {
-      return { 'attorney-a': 'Attorney-A', 'attorney-b': 'Attorney-B',
-               'justice': 'Justice', 'clerk': 'Clerk',
+      return { 'attorney-a': 'Examiner-A', 'attorney-b': 'Examiner-B',
+               'justice': 'Chair', 'clerk': 'Clerk',
                'orchestrator': 'Evidence Orchestrator' }[speaker] || speaker;
     },
 
@@ -540,9 +702,10 @@ function consoleApp() {
     justicePlaceholder() {
       const m = {
         'justice': 'State an observation for the record…',
-        'direct-a': 'Direct Attorney-A — e.g. "Address the non-obviousness of the Kalman combination"',
-        'direct-b': 'Direct Attorney-B — e.g. "What prior art challenges claim 3?"',
-        'ruling': 'Issue your ruling. This will be written to docs/governance/case_law.md',
+        'direct-a': 'Direct Examiner-A — e.g. "Address the non-obviousness of the push-off trigger"',
+        'direct-b': 'Direct Examiner-B — e.g. "What prior art discloses the ring-buffer heel-strike inference?"',
+        'gather-more': 'Describe additional evidence to find, e.g. "prior art for the IMU fusion method"',
+        'ruling': 'Issue your ruling. Prevailing examiner will draft the review record entry.',
       };
       return m[this.justiceTarget] || '';
     },
