@@ -1,67 +1,64 @@
 {% extends "base.html" %}
-{% from "_components/badge.html" import badge, phase, status_badge %}
+{% from "_components/badge.html" import badge, phase %}
 {% from "_components/breadcrumb.html" import breadcrumb %}
 {% from "_components/empty_state.html" import empty %}
 {% from "_components/data_table.html" import data_table %}
+{% from "_components/card.html" import section_label, section_header %}
 
-{% block title %}{{ slug }} — Crucible-Canvas{% endblock %}
+{% block title %}{{ slug }} — Canvas{% endblock %}
 
 {% block content %}
 
-{{ breadcrumb([('dashboard','/dashboard'), (slug, None)]) }}
+{{ breadcrumb([('canvas','/dashboard'), (slug, None)]) }}
 
-<div class="flex items-center gap-3 mb-8">
-  <h1 class="text-xl font-semibold text-white tracking-tight">{{ slug }}</h1>
-  <span class="text-gray-600 text-sm mono">{{ record.version }}</span>
+{{ section_header(2, 'Product · ' ~ slug, meta=record.version) }}
+
+<div class="flex items-center gap-4" style="margin-bottom:8px">
+  <h1 class="display" style="font-size:clamp(36px,4.5vw,52px);line-height:1;letter-spacing:-0.04em">{{ slug }}</h1>
   {{ phase(record.phase) }}
 </div>
 
-<div class="grid gap-6 lg:grid-cols-2">
+<div style="margin-top:48px"></div>
+
+<div class="grid gap-8 lg:grid-cols-2">
 
   <!-- Left -->
-  <div class="space-y-6">
+  <div class="space-y-8">
 
-    <!-- Firmware snapshot -->
     {% if firmware %}
     <section>
-      <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Firmware Snapshot</div>
-      <div class="rounded-2xl border border-gray-800/80 overflow-hidden" style="background:#0d1117">
-        <div class="divide-y divide-gray-800/60">
-          <div class="flex items-center justify-between px-5 py-3">
-            <span class="text-xs text-gray-500">Board</span>
-            <span class="text-sm text-gray-200">{{ firmware.board.name if firmware.board else '—' }}</span>
-          </div>
-          <div class="flex items-center justify-between px-5 py-3">
-            <span class="text-xs text-gray-500">MCU</span>
-            <span class="text-sm text-gray-200">{{ firmware.board.mcu if firmware.board else '—' }}</span>
-          </div>
-          <div class="flex items-center justify-between px-5 py-3">
-            <span class="text-xs text-gray-500">Hash</span>
-            <span class="text-xs text-emerald-400 mono">{{ firmware.firmware_hash or '—' }}</span>
-          </div>
-          <div class="flex items-center justify-between px-5 py-3">
-            <span class="text-xs text-gray-500">Lock status</span>
-            {% if firmware.lock_status == 'LOCKED' %}
-              {{ badge('green', firmware.lock_status) }}
+      {{ section_label('Firmware Snapshot') }}
+      <div class="card" style="overflow:hidden">
+        {% set rows = [
+          ('Board', firmware.board.name if firmware.board else '—'),
+          ('MCU', firmware.board.mcu if firmware.board else '—'),
+          ('Hash', firmware.firmware_hash or '—'),
+          ('Lock status', None),
+          ('Stage validated', firmware.stage_validated or '—'),
+        ] %}
+        {% for label, value in rows %}
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;{% if not loop.first %}border-top:1px solid var(--border);{% endif %}">
+            <span class="eyebrow" style="font-size:11px">{{ label }}</span>
+            {% if label == 'Lock status' %}
+              {% if firmware.lock_status == 'LOCKED' %}{{ badge('green', firmware.lock_status) }}
+              {% else %}{{ badge('amber', firmware.lock_status or '—') }}{% endif %}
+            {% elif label == 'Hash' %}
+              <span class="mono" style="font-size:12px;color:var(--ember)">{{ value }}</span>
             {% else %}
-              {{ badge('amber', firmware.lock_status or '—') }}
+              <span style="font-size:14px;color:var(--fg)">{{ value }}</span>
             {% endif %}
           </div>
-          <div class="flex items-center justify-between px-5 py-3">
-            <span class="text-xs text-gray-500">Stage validated</span>
-            <span class="text-sm text-gray-300">{{ firmware.stage_validated or '—' }}</span>
-          </div>
-        </div>
+        {% endfor %}
         {% if firmware.libraries %}
-        <div class="px-5 pt-3 pb-4" style="border-top:1px solid rgba(255,255,255,.05)">
-          <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-2">Libraries</div>
-          <div class="space-y-1">
-            {% for lib in firmware.libraries %}
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-gray-300">{{ lib.name }}</span>
-              <span class="text-gray-600 mono">{{ lib.version }}</span>
+        <div style="padding:14px 20px;border-top:1px solid var(--border);background:var(--bg-soft)">
+          <div class="section-label">Libraries</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+          {% for lib in firmware.libraries %}
+            <div style="display:flex;justify-content:space-between;font-size:13px">
+              <span style="color:var(--fg)">{{ lib.name }}</span>
+              <span class="mono" style="color:var(--fg-soft)">{{ lib.version }}</span>
             </div>
-            {% endfor %}
+          {% endfor %}
           </div>
         </div>
         {% endif %}
@@ -69,19 +66,14 @@
     </section>
     {% endif %}
 
-    <!-- Feature abstract -->
     {% if abstract %}
     <section x-data="{ expanded: false }">
-      <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Feature Abstract</div>
-      <div class="rounded-2xl border border-gray-800/80 p-5" style="background:#0d1117">
-        <div x-show="!expanded" class="text-sm text-gray-300 leading-relaxed line-clamp-6">
+      {{ section_label('Feature Abstract') }}
+      <div class="card" style="padding:22px">
+        <div :class="{ 'line-clamp-6': !expanded }" style="font-size:14px;line-height:1.7;color:var(--fg-mute)">
           {{ abstract | replace('\n', '<br>') | safe }}
         </div>
-        <div x-show="expanded" class="text-sm text-gray-300 leading-relaxed">
-          {{ abstract | replace('\n', '<br>') | safe }}
-        </div>
-        <button @click="expanded = !expanded"
-                class="mt-4 text-xs text-emerald-500 hover:text-emerald-300 transition-colors">
+        <button @click="expanded = !expanded" class="btn-row" style="margin-top:14px">
           <span x-text="expanded ? '↑ Show less' : '↓ Show more'">↓ Show more</span>
         </button>
       </div>
@@ -91,32 +83,31 @@
   </div>
 
   <!-- Right -->
-  <div class="space-y-6">
+  <div class="space-y-8">
 
-    <!-- Patent candidates -->
     <section>
-      <div class="flex items-center justify-between mb-3">
-        <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold">Patent Candidates</div>
-        <a href="/ip/{{ slug }}" class="text-xs text-emerald-500 hover:text-emerald-300 transition-colors">view all →</a>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+        <div class="section-label" style="margin-bottom:0">Patent Candidates</div>
+        <a href="/ip/{{ slug }}" class="eyebrow" style="font-size:10px">View all →</a>
       </div>
 
       {% if not candidates %}
         {{ empty('No candidates yet.', hint='/patent novelty ' ~ slug) }}
       {% else %}
-      <div class="space-y-3">
+      <div style="display:flex;flex-direction:column;gap:12px">
         {% for c in candidates %}
-        <div class="rounded-xl border border-gray-800/80 p-4" style="background:#0d1117">
-          <div class="flex items-start justify-between gap-2">
-            <div class="text-sm text-white font-medium leading-snug">{{ c.title }}</div>
+        <div class="card" style="padding:18px">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+            <div class="display" style="font-size:15px;font-weight:500;line-height:1.4;color:var(--fg)">{{ c.title }}</div>
             {{ badge('purple', 'suggestion', extra='shrink-0') }}
           </div>
           {% if c.heuristic %}
-          <div class="mt-2 text-xs text-gray-600">
-            Heuristic: <span class="text-yellow-500">{{ c.heuristic }}</span>
+          <div style="margin-top:10px;font-size:12px;color:var(--fg-soft)">
+            Heuristic: <span style="color:var(--stat)">{{ c.heuristic }}</span>
           </div>
           {% endif %}
           {% if c.summary %}
-          <div class="mt-2 text-xs text-gray-500 leading-relaxed line-clamp-2">{{ c.summary }}</div>
+          <div style="margin-top:10px;font-size:13px;color:var(--fg-mute);line-height:1.6">{{ c.summary }}</div>
           {% endif %}
         </div>
         {% endfor %}
@@ -127,15 +118,14 @@
   </div>
 </div>
 
-<!-- BOM table -->
 {% if bom %}
-<section class="mt-8">
-  <div class="text-[10px] text-gray-600 uppercase tracking-widest font-semibold mb-3">Bill of Materials</div>
+<section style="margin-top:64px">
+  {{ section_label('Bill of Materials') }}
   {% call data_table(headers=bom[0].keys()|list) %}
     {% for row in bom %}
-    <tr class="hover:bg-gray-900/60 transition-colors">
+    <tr>
       {% for val in row.values() %}
-      <td class="px-4 py-3 text-gray-300 text-xs mono whitespace-nowrap" style="background:transparent">{{ val }}</td>
+      <td class="mono" style="font-size:12px;color:var(--fg)">{{ val }}</td>
       {% endfor %}
     </tr>
     {% endfor %}

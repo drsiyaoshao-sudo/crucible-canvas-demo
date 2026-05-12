@@ -1,17 +1,8 @@
-{# ============================================================
-   breadcrumb — always above the H1. Pass a list of (label, href)
-   tuples; the last item is rendered as the current page (no link).
-
-     {{ breadcrumb([('dashboard','/dashboard'), (slug,'/product/' ~ slug), ('compliance', None)]) }}
-   ============================================================ #}
-{% macro breadcrumb(crumbs) -%}
-<div class="text-xs text-gray-500 mb-6">
-  {%- for label, href in crumbs -%}
-    {%- if not loop.last and href -%}
-      <a href="{{ href }}" class="hover:text-gray-300">{{ label }}</a><span class="mx-2">›</span>
-    {%- else -%}
-      <span class="text-gray-300">{{ label }}</span>
-    {%- endif -%}
-  {%- endfor -%}
+{% macro breadcrumb(items) %}
+<div class="breadcrumb">
+  {% for label, href in items %}
+    {% if href %}<a href="{{ href }}">{{ label }}</a>{% else %}<span class="current">{{ label }}</span>{% endif %}
+    {% if not loop.last %}<span class="sep">›</span>{% endif %}
+  {% endfor %}
 </div>
-{%- endmacro %}
+{% endmacro %}

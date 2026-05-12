@@ -223,8 +223,21 @@ const statusColors = {
   NOT_TESTED:         '#ef4444',
 };
 
+// Count edge degree per node (used to cull isolated BOM leaves)
+const nodeDegree = {};
+for (const edge of (knowledgeMap.edges || [])) {
+  nodeDegree[edge.from] = (nodeDegree[edge.from] || 0) + 1;
+  nodeDegree[edge.to]   = (nodeDegree[edge.to]   || 0) + 1;
+}
+const hiddenBom = new Set(
+  (knowledgeMap.nodes || [])
+    .filter(n => n.type === 'bom_component' && (nodeDegree[n.id] || 0) <= 1)
+    .map(n => n.id)
+);
+
 const elements = [];
 for (const node of (knowledgeMap.nodes || [])) {
+  if (hiddenBom.has(node.id)) continue;
   const color = node.type === 'standard'
     ? (node.color || statusColors[node.status] || '#9ca3af')
     : (node.color || typeColors[node.type]  || '#9ca3af');
@@ -243,6 +256,8 @@ for (const node of (knowledgeMap.nodes || [])) {
   }});
 }
 for (const edge of (knowledgeMap.edges || [])) {
+  if (hiddenBom.has(edge.from) || hiddenBom.has(edge.to)) continue;
+  if (edge.from === edge.to) continue;  // drop self-loops
   elements.push({ data: {
     id:       edge.id || `${edge.from}-${edge.to}`,
     source:   edge.from,
@@ -261,7 +276,7 @@ const cy = cytoscape({
         'background-color':   'data(color)',
         'label':              'data(label)',
         'color':              '#cbd5e1',
-        'font-size':          '10px',
+        'font-size':          '9px',
         'font-family':        "'SF Mono', ui-monospace, monospace",
         'font-weight':        '500',
         'text-valign':        'bottom',
@@ -269,8 +284,8 @@ const cy = cytoscape({
         'text-margin-y':      '5px',
         'text-outline-color': '#080c14',
         'text-outline-width': '3px',
-        'width':              '36px',
-        'height':             '36px',
+        'width':              '22px',
+        'height':             '22px',
         'border-width':       '1.5px',
         'border-color':       'rgba(255,255,255,.15)',
         'background-opacity': 0.85,
@@ -278,13 +293,13 @@ const cy = cytoscape({
     },
     {
       selector: 'node[type="product"]',
-      style: { width: '52px', height: '52px', 'font-size': '11px', 'font-weight': 'bold',
+      style: { width: '34px', height: '34px', 'font-size': '10px', 'font-weight': 'bold',
                'border-width': '2px', 'border-color': 'rgba(255,255,255,.3)', 'background-opacity': 1 }
     },
-    { selector: 'node[type="patent_candidate"]', style: { shape: 'pentagon',        width: '32px', height: '32px' } },
-    { selector: 'node[type="standard"]',         style: { shape: 'diamond',         width: '30px', height: '30px' } },
-    { selector: 'node[type="feature"]',          style: { shape: 'round-rectangle', width: '34px', height: '28px' } },
-    { selector: 'node[type="bom_component"]',    style: { shape: 'hexagon',         width: '30px', height: '30px' } },
+    { selector: 'node[type="patent_candidate"]', style: { shape: 'pentagon',        width: '18px', height: '18px' } },
+    { selector: 'node[type="standard"]',         style: { shape: 'diamond',         width: '18px', height: '18px' } },
+    { selector: 'node[type="feature"]',          style: { shape: 'round-rectangle', width: '22px', height: '16px' } },
+    { selector: 'node[type="bom_component"]',    style: { shape: 'hexagon',         width: '18px', height: '18px' } },
     {
       selector: 'node.selected',
       style: {
@@ -302,37 +317,44 @@ const cy = cytoscape({
     {
       selector: 'edge',
       style: {
-        'line-color':         '#1e2a3a',
-        'target-arrow-color': '#1e2a3a',
+        'line-color':         '#3d5068',
+        'target-arrow-color': '#3d5068',
         'target-arrow-shape': 'triangle',
         'arrow-scale':        0.85,
         'curve-style':        'bezier',
-        'width':              1.5,
-        'opacity':            0.6,
+        'width':              2,
+        'opacity':            0.8,
       }
     },
-    { selector: 'edge[relation="discloses"]',  style: { 'line-color': '#7c3aed', 'target-arrow-color': '#7c3aed', 'line-style': 'dashed', opacity: .85 } },
-    { selector: 'edge[relation="maps_to"]',    style: { 'line-color': '#b45309', 'target-arrow-color': '#b45309', opacity: .7 } },
-    { selector: 'edge[relation="implements"]', style: { 'line-color': '#c2410c', 'target-arrow-color': '#c2410c', opacity: .75 } },
-    { selector: 'edge[relation="includes"]',   style: { 'line-color': '#0891b2', 'target-arrow-color': '#0891b2', opacity: .75 } },
-    { selector: 'edge[relation="supports"]',   style: { 'line-color': '#ea580c', 'target-arrow-color': '#ea580c', 'line-style': 'dashed', opacity: .65 } },
-    { selector: 'edge[relation="triggers"]',   style: { 'line-color': '#0e7490', 'target-arrow-color': '#0e7490', 'line-style': 'dashed', opacity: .6 } },
-    { selector: 'edge[relation="evidences"]',  style: { 'line-color': '#7c3aed', 'target-arrow-color': '#7c3aed', 'line-style': 'dotted', opacity: .8 } },
-    { selector: 'edge.highlighted', style: { opacity: 1, width: 2.5 } },
-    { selector: 'edge.dimmed',      style: { opacity: .05 } },
+    { selector: 'edge[relation="discloses"]',  style: { 'line-color': '#8b5cf6', 'target-arrow-color': '#8b5cf6', 'line-style': 'dashed', opacity: .9 } },
+    { selector: 'edge[relation="maps_to"]',    style: { 'line-color': '#d97706', 'target-arrow-color': '#d97706', opacity: .85 } },
+    { selector: 'edge[relation="implements"]', style: { 'line-color': '#ef4444', 'target-arrow-color': '#ef4444', opacity: .85 } },
+    { selector: 'edge[relation="includes"]',   style: { 'line-color': '#22d3ee', 'target-arrow-color': '#22d3ee', opacity: .85 } },
+    { selector: 'edge[relation="supports"]',   style: { 'line-color': '#f97316', 'target-arrow-color': '#f97316', 'line-style': 'dashed', opacity: .8 } },
+    { selector: 'edge[relation="triggers"]',   style: { 'line-color': '#06b6d4', 'target-arrow-color': '#06b6d4', 'line-style': 'dashed', opacity: .8 } },
+    { selector: 'edge[relation="evidences"]',  style: { 'line-color': '#a78bfa', 'target-arrow-color': '#a78bfa', 'line-style': 'dotted', opacity: .9 } },
+    { selector: 'edge.highlighted', style: { opacity: 1, width: 3 } },
+    { selector: 'edge.dimmed',      style: { opacity: .07 } },
   ],
   layout: {
-    name: 'cose',
+    name: 'concentric',
     animate: true,
-    animationDuration: 700,
-    animationEasing: 'ease-out-cubic',
-    nodeRepulsion: 18000,
-    idealEdgeLength: 110,
-    padding: 50,
-    randomize: false,
-    componentSpacing: 90,
-    gravity: 0.25,
-    numIter: 1000,
+    animationDuration: 600,
+    padding: 40,
+    minNodeSpacing: 22,
+    spacingFactor: 0.65,
+    equidistant: false,
+    startAngle: Math.PI / 2,
+    clockwise: false,
+    concentric(node) {
+      const t = node.data('type');
+      if (t === 'product')          return 5;
+      if (t === 'feature')          return 4;
+      if (t === 'patent_candidate') return 3;
+      if (t === 'bom_component')    return 2;
+      return 1;
+    },
+    levelWidth() { return 1; },
   },
   userZoomingEnabled: true,
   userPanningEnabled: true,

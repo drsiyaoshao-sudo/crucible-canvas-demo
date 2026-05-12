@@ -1,15 +1,6 @@
-{# ============================================================
-   empty — dashed-border placeholder shown when a section has no data.
-
-     {{ empty('No candidates yet.', hint='/patent novelty gaitsense') }}
-     {{ empty('No matrix yet.', hint='/compliance map ' ~ slug, size='lg') }}
-
-   size : sm (p-5) | md (p-6, default) | lg (p-10)
-   ============================================================ #}
-{% macro empty(msg, hint=None, size='md') -%}
-  {%- set p = {'sm':'p-5', 'md':'p-6', 'lg':'p-10'}[size] -%}
-  <div class="rounded-xl border border-dashed border-gray-700 {{ p }} text-center text-gray-500 text-sm">
-    {{ msg }}
-    {%- if hint %}<br><code class="text-emerald-500 text-xs mt-2 inline-block">{{ hint }}</code>{% endif %}
-  </div>
-{%- endmacro %}
+{% macro empty(message, hint=None, size='lg') %}
+<div class="empty {% if size == 'sm' %}sm{% endif %}">
+  {{ message }}
+  {% if hint %}<code class="hint">{{ hint }}</code>{% endif %}
+</div>
+{% endmacro %}

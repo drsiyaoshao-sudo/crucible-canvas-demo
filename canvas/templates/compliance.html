@@ -1,29 +1,33 @@
 {% extends "base.html" %}
 {% from "_components/badge.html" import badge, priority, status_badge %}
-{% from "_components/card.html" import section_label %}
+{% from "_components/card.html" import section_label, section_header %}
 {% from "_components/banner.html" import banner %}
 {% from "_components/empty_state.html" import empty %}
 {% from "_components/breadcrumb.html" import breadcrumb %}
 {% from "_components/data_table.html" import data_table %}
 
-{% block title %}Compliance — {{ slug }} — Crucible-Canvas{% endblock %}
+{% block title %}Compliance · {{ slug }} — Canvas{% endblock %}
 
 {% block content %}
 
-{{ breadcrumb([('dashboard','/dashboard'), (slug, '/product/' ~ slug), ('compliance', None)]) }}
+{{ breadcrumb([('canvas','/dashboard'), (slug, '/product/' ~ slug), ('compliance', None)]) }}
 
-<h1 class="text-2xl font-bold text-white mb-8">Compliance — {{ slug }}</h1>
+{{ section_header(3, 'Compliance · ' ~ slug, meta='Article I · Physics-first') }}
+
+<h1 class="display" style="font-size:clamp(36px,4.5vw,52px);line-height:1;letter-spacing:-0.04em">Compliance — {{ slug }}</h1>
 
 {% if matrix.is_prescreen %}
-<div class="mb-6">
-  {{ banner('warn', 'SUGGESTION ONLY', 'This matrix was generated in prescreen mode. No binding determination has been made. Verify with a qualified compliance engineer.') }}
+<div style="margin:32px 0">
+  {{ banner('warn', 'Suggestion only', 'This matrix was generated in prescreen mode. No binding determination has been made. Verify with a qualified compliance engineer.') }}
 </div>
+{% else %}
+<div style="margin-top:32px"></div>
 {% endif %}
 
 <div class="grid gap-8 lg:grid-cols-3">
 
-  <!-- Priority standards (left) -->
-  <div class="space-y-6">
+  <div class="space-y-8">
+
     <section>
       {{ section_label('Priority Standards') }}
       {% if not prescreen.found %}
@@ -31,42 +35,40 @@
       {% else %}
         {% call data_table(headers=['P','Standard','Jurisdiction'], variant='compact') %}
           {% for row in prescreen.rows %}
-          <tr class="hover:bg-gray-800/50">
-            <td class="px-3 py-2">{{ priority(row.priority) }}</td>
-            <td class="px-3 py-2 text-gray-300 font-medium">{{ row.standard }}</td>
-            <td class="px-3 py-2 text-gray-500">{{ row.jurisdiction }}</td>
+          <tr>
+            <td>{{ priority(row.priority) }}</td>
+            <td style="color:var(--fg)">{{ row.standard }}</td>
+            <td style="color:var(--fg-soft)">{{ row.jurisdiction }}</td>
           </tr>
           {% endfor %}
         {% endcall %}
       {% endif %}
     </section>
 
-    <!-- Regulatory calendar -->
     <section>
       {{ section_label('Regulatory Calendar') }}
       {% if not calendar %}
         {{ empty('No dates scheduled yet.', size='sm') }}
       {% else %}
-      <div class="space-y-2">
-        {% for entry in calendar %}
-        <div class="rounded-lg border border-gray-800 bg-gray-900 px-4 py-3 text-xs">
-          <div class="flex justify-between items-center">
-            <span class="text-gray-300 font-medium">{{ entry.standard }}</span>
+      <div style="display:flex;flex-direction:column;gap:10px">
+      {% for entry in calendar %}
+        <div class="card" style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="color:var(--fg);font-size:13px">{{ entry.standard }}</span>
             {% if entry.days_until != '—' and entry.days_until != '' %}
               {{ badge('amber', entry.days_until ~ 'd') }}
             {% else %}
               {{ badge('gray', '—') }}
             {% endif %}
           </div>
-          <div class="text-gray-600 mt-1">Next renewal: {{ entry.next_renewal }}</div>
+          <div class="eyebrow" style="font-size:10px;margin-top:8px">Next renewal · {{ entry.next_renewal }}</div>
         </div>
-        {% endfor %}
+      {% endfor %}
       </div>
       {% endif %}
     </section>
   </div>
 
-  <!-- Gap table (right, spans 2 cols) -->
   <div class="lg:col-span-2">
     {{ section_label('Compliance Gap Table') }}
     {% if not matrix.found %}
@@ -76,15 +78,15 @@
     {% else %}
       {% call data_table(headers=['Standard','Clause','Status','Notes']) %}
         {% for row in matrix.rows %}
-        <tr class="bg-gray-950 hover:bg-gray-900 transition-colors">
-          <td class="px-4 py-3 text-gray-300 font-medium text-xs">{{ row.standard }}</td>
-          <td class="px-4 py-3 text-gray-400 text-xs">{{ row.clause }}</td>
-          <td class="px-4 py-3">{{ status_badge(row.status) }}</td>
-          <td class="px-4 py-3 text-gray-500 text-xs">{{ row.notes }}</td>
+        <tr>
+          <td style="color:var(--fg)">{{ row.standard }}</td>
+          <td class="mono" style="font-size:12px">{{ row.clause }}</td>
+          <td>{{ status_badge(row.status) }}</td>
+          <td style="color:var(--fg-soft);font-size:12px">{{ row.notes }}</td>
         </tr>
         {% endfor %}
       {% endcall %}
-      <div class="mt-2 text-xs text-gray-600">Source: {{ matrix.filename }}</div>
+      <div class="eyebrow" style="font-size:10px;margin-top:12px">Source · {{ matrix.filename }}</div>
     {% endif %}
   </div>
 

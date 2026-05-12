@@ -1,45 +1,25 @@
-{# ============================================================
-   pipeline_row — one stage in the dashboard card's pipeline block.
-
-   This is Alpine-aware: it relies on the productCard() x-data
-   scope (jobs[name].status, runJob(name), live.*). The macro just
-   keeps the markup DRY across the three stages.
-
-   name   : 'novelty' | 'compliance_screen' | 'compliance_map'
-   label  : visible row label (e.g. 'patent novelty scan')
-   accent : 'emerald' | 'yellow' | 'orange'   ← hover ring color
-   ============================================================ #}
-{% macro pipeline_row(name, label, accent='emerald') %}
-  {%- set hover_map = {
-    'emerald': 'hover:bg-emerald-700 hover:border-emerald-600',
-    'yellow':  'hover:bg-yellow-900 hover:border-yellow-700',
-    'orange':  'hover:bg-orange-900 hover:border-orange-700',
-  } -%}
-  {%- set spinner_color = {
-    'emerald': 'text-emerald-400',
-    'yellow':  'text-yellow-400',
-    'orange':  'text-orange-400',
-  }[accent] -%}
-  <div class="flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2 text-xs">
-      <template x-if="jobs.{{ name }}.status === 'running'">
-        <span class="spinner {{ spinner_color }}"></span>
-      </template>
-      <template x-if="jobs.{{ name }}.status === 'done'">
-        <span class="text-emerald-400">✓</span>
-      </template>
-      <template x-if="jobs.{{ name }}.status === 'error'">
-        <span class="text-red-400">✗</span>
-      </template>
-      <span class="text-gray-400">{{ label }}</span>
-      {{ caller() if caller is defined else '' }}
-    </div>
-    <button
-      @click="runJob('{{ name }}')"
-      :disabled="jobs.{{ name }}.status === 'running'"
-      class="run-btn"
-      :class="{'opacity-40 cursor-not-allowed': jobs.{{ name }}.status === 'running'}">
-      <span x-text="jobs.{{ name }}.status === 'running' ? 'running…' : (jobs.{{ name }}.status === 'done' ? 're-run' : 'run')"></span>
-    </button>
+{% macro pipeline_row(job_type, label, accent='emerald') %}
+<div class="flex items-center justify-between gap-2">
+  <div class="flex items-center gap-2.5" style="font-size:13px;color:var(--fg-mute)">
+    <template x-if="jobs.{{ job_type }}.status === 'idle'">
+      <span style="color:var(--fg-soft)">●</span>
+    </template>
+    <template x-if="jobs.{{ job_type }}.status === 'running'">
+      <span class="spinner" style="color:var(--ember)"></span>
+    </template>
+    <template x-if="jobs.{{ job_type }}.status === 'done'">
+      <span style="color:var(--ember)">✓</span>
+    </template>
+    <template x-if="jobs.{{ job_type }}.status === 'error'">
+      <span style="color:#f87171">✗</span>
+    </template>
+    <span>{{ label }}</span>
+    {{ caller() if caller else '' }}
   </div>
+  <button class="btn-row accent-{{ accent }}"
+          :disabled="jobs.{{ job_type }}.status === 'running'"
+          @click="runJob('{{ job_type }}')">
+    <span x-text="jobs.{{ job_type }}.status === 'running' ? 'running…' : (jobs.{{ job_type }}.status === 'done' ? 're-run' : 'run')">run</span>
+  </button>
+</div>
 {% endmacro %}
